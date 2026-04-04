@@ -5,6 +5,7 @@ import {
   CreatePromptForm,
   EmptyPromptPreview,
 } from '~/components/Prompts';
+import { adminRoutes, isAdminPanelEnabled } from '~/admin-plugin';
 import DashboardRoute from './Layouts/Dashboard';
 
 const dashboardRoutes = {
@@ -72,6 +73,7 @@ const dashboardRoutes = {
         },
       ],
     },
+    ...(isAdminPanelEnabled ? [adminRoutes] : []),
     {
       path: '*',
       element: <Navigate to="/d/files" replace={true} />,
