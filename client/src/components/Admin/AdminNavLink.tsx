@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Shield } from 'lucide-react';
+import { TooltipAnchor } from '@librechat/client';
 import { useHasCapability } from './hooks';
 
 const isAdminEnabled = import.meta.env.VITE_ENABLE_ADMIN_PANEL === 'true';
@@ -12,13 +13,18 @@ export default function AdminNavLink() {
   }
 
   return (
-    <Link
-      to="/d/admin"
-      className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary"
-      aria-label="Admin Panel"
-    >
-      <Shield className="h-4 w-4" />
-      <span>Admin</span>
-    </Link>
+    <TooltipAnchor
+      side="right"
+      description="Admin Panel"
+      render={
+        <Link
+          to="/d/admin"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary"
+          aria-label="Admin Panel"
+        >
+          <Shield className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      }
+    />
   );
 }
