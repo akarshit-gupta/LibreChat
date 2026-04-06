@@ -2,7 +2,7 @@ import React, { Suspense, lazy } from 'react';
 
 const AdminLayout = lazy(() => import('./components/Admin'));
 
-export const isAdminPanelEnabled = import.meta.env.VITE_ENABLE_ADMIN_PANEL === 'true';
+export const isAdminPanelEnabled = true;
 
 export const adminRoutes = {
   path: 'admin/*',

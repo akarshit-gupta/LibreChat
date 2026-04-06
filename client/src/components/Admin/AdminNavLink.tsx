@@ -3,12 +3,10 @@ import { Shield } from 'lucide-react';
 import { TooltipAnchor } from '@librechat/client';
 import { useHasCapability } from './hooks';
 
-const isAdminEnabled = import.meta.env.VITE_ENABLE_ADMIN_PANEL === 'true';
-
 export default function AdminNavLink() {
   const hasAccess = useHasCapability('access:admin');
 
-  if (!isAdminEnabled || !hasAccess) {
+  if (!hasAccess) {
     return null;
   }
 
