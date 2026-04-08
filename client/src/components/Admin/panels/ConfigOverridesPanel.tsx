@@ -15,6 +15,7 @@ import {
   useDeleteConfig,
   useToggleConfigActive,
   useHasCapability,
+  usePrincipalNames,
 } from '../hooks';
 import ConfigEditor from '../components/ConfigEditor';
 import PrincipalPicker from '../components/PrincipalPicker';
@@ -94,6 +95,7 @@ function ConfigListView({
   canManage: boolean;
 }) {
   const { data, isLoading, error } = useAdminConfigs();
+  const { resolveName } = usePrincipalNames();
   const toggleActive = useToggleConfigActive();
   const { showToast } = useToastContext();
 
@@ -140,7 +142,7 @@ function ConfigListView({
             <thead className="border-b border-border-light bg-surface-secondary">
               <tr>
                 <th className="px-4 py-2 font-medium text-text-secondary">Principal Type</th>
-                <th className="px-4 py-2 font-medium text-text-secondary">Principal ID</th>
+                <th className="px-4 py-2 font-medium text-text-secondary">Principal Name</th>
                 <th className="px-4 py-2 font-medium text-text-secondary">Priority</th>
                 <th className="px-4 py-2 font-medium text-text-secondary">Active</th>
               </tr>
@@ -166,7 +168,12 @@ function ConfigListView({
                       {config.principalType}
                     </span>
                   </td>
-                  <td className="px-4 py-2 font-medium text-text-primary">{config.principalId}</td>
+                  <td className="px-4 py-2 font-medium text-text-primary">
+                    {resolveName(config.principalType, config.principalId)}
+                    {resolveName(config.principalType, config.principalId) !== config.principalId && (
+                      <span className="ml-1.5 text-xs text-text-secondary">({config.principalId})</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2 text-text-secondary">{config.priority}</td>
                   <td className="px-4 py-2">
                     <Switch
@@ -200,6 +207,7 @@ function ConfigDetailView({
   canManage: boolean;
 }) {
   const { showToast } = useToastContext();
+  const { resolveName } = usePrincipalNames();
   const upsertConfig = useUpsertConfig();
   const deleteConfig = useDeleteConfig();
   const toggleActive = useToggleConfigActive();
@@ -251,7 +259,7 @@ function ConfigDetailView({
           Back
         </Button>
         <span className="text-sm text-text-secondary">
-          {config.principalType} / {config.principalId}
+          {config.principalType} / {resolveName(config.principalType, config.principalId)}
         </span>
       </div>
 
@@ -284,7 +292,7 @@ function ConfigDetailView({
                   <p className="text-sm text-text-secondary">
                     Are you sure you want to delete the config override for{' '}
                     <span className="font-medium text-text-primary">
-                      {config.principalType}:{config.principalId}
+                      {config.principalType}:{resolveName(config.principalType, config.principalId)}
                     </span>
                     ?
                   </p>

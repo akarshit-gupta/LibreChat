@@ -12,6 +12,7 @@ import {
   useAssignGrant,
   useRevokeGrant,
   useHasCapability,
+  usePrincipalNames,
 } from '../hooks';
 import SearchInput from '../components/SearchInput';
 import PrincipalPicker from '../components/PrincipalPicker';
@@ -25,6 +26,7 @@ import type { AdminSystemGrant } from '../types';
 export default function GrantsPanel() {
   const { data: grants, isLoading, error } = useAdminGrants();
   const canManage = useHasCapability('manage:grants');
+  const { resolveName } = usePrincipalNames();
   const { showToast } = useToastContext();
 
   const [filterQuery, setFilterQuery] = useState('');
@@ -100,7 +102,7 @@ export default function GrantsPanel() {
             <thead className="border-b border-border-light bg-surface-secondary">
               <tr>
                 <th className="px-4 py-2 font-medium text-text-secondary">Principal Type</th>
-                <th className="px-4 py-2 font-medium text-text-secondary">Principal ID</th>
+                <th className="px-4 py-2 font-medium text-text-secondary">Principal Name</th>
                 <th className="px-4 py-2 font-medium text-text-secondary">Capability</th>
                 <th className="px-4 py-2 font-medium text-text-secondary">Granted</th>
                 {canManage && <th className="w-24 px-4 py-2" />}
@@ -114,7 +116,12 @@ export default function GrantsPanel() {
                       {grant.principalType}
                     </span>
                   </td>
-                  <td className="px-4 py-2 font-medium text-text-primary">{grant.principalId}</td>
+                  <td className="px-4 py-2 font-medium text-text-primary">
+                    {resolveName(grant.principalType, grant.principalId)}
+                    {resolveName(grant.principalType, grant.principalId) !== grant.principalId && (
+                      <span className="ml-1.5 text-xs text-text-secondary">({grant.principalId})</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2 text-text-secondary">{grant.capability}</td>
                   <td className="px-4 py-2 text-xs text-text-secondary">
                     {grant.grantedAt ? new Date(grant.grantedAt).toLocaleDateString() : '—'}

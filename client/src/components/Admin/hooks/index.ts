@@ -37,3 +37,4 @@ export {
   useAssignGrant,
   useRevokeGrant,
 } from './useAdminGrants';
+export { usePrincipalNames } from './usePrincipalNames';
