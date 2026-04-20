@@ -18,18 +18,10 @@ export function injectMandatoryGroupHeaders(
       : '';
 
   if (!groupId && !groupName) {
-    logger.debug('[MCP][headers] skipped mandatory group header injection', {
-      userId: user?.id ?? null,
-      hasHeaders: Boolean(headers && Object.keys(headers).length > 0),
-      hasGroupId: Boolean(user?.groupId),
-      hasGroupName: Boolean(user?.groupName),
-    });
     return headers;
   }
 
   const merged = { ...(headers ?? {}) };
-  const hadGroupIdHeader = typeof merged[GROUP_ID_HEADER] === 'string';
-  const hadGroupNameHeader = typeof merged[GROUP_NAME_HEADER] === 'string';
   if (groupId) {
     merged[GROUP_ID_HEADER] = groupId;
   }
@@ -41,8 +33,6 @@ export function injectMandatoryGroupHeaders(
     userId: user?.id ?? null,
     groupIdLen: groupId.length,
     groupNameLen: groupName.length,
-    hadGroupIdHeader,
-    hadGroupNameHeader,
     headerNames: Object.keys(merged).sort(),
   });
 

@@ -51,15 +51,6 @@ export class MCPConnectionFactory {
     const enrichedOAuth = oauth?.user
       ? { ...oauth, user: await enrichUserForMcpGroups(oauth.user) }
       : oauth;
-    logger.debug(`[MCP][${basic.serverName}] Connection factory user enrichment`, {
-      hasUser: Boolean(enrichedOAuth?.user?.id),
-      groupIdLen:
-        typeof enrichedOAuth?.user?.groupId === 'string' ? enrichedOAuth.user.groupId.length : 0,
-      groupNameLen:
-        typeof enrichedOAuth?.user?.groupName === 'string'
-          ? enrichedOAuth.user.groupName.length
-          : 0,
-    });
     const factory = new this(basic, enrichedOAuth);
     return factory.createConnection();
   }
@@ -76,15 +67,6 @@ export class MCPConnectionFactory {
     const enrichedOptions = options?.user
       ? { ...options, user: await enrichUserForMcpGroups(options.user) }
       : options;
-    logger.debug(`[MCP][${basic.serverName}] Tool discovery user enrichment`, {
-      hasUser: Boolean(enrichedOptions?.user?.id),
-      groupIdLen:
-        typeof enrichedOptions?.user?.groupId === 'string' ? enrichedOptions.user.groupId.length : 0,
-      groupNameLen:
-        typeof enrichedOptions?.user?.groupName === 'string'
-          ? enrichedOptions.user.groupName.length
-          : 0,
-    });
     if (options != null && 'useOAuth' in options) {
       const oauthOptions = enrichedOptions as Omit<t.OAuthConnectionOptions, 'returnOnOAuth'>;
       const factory = new this(basic, { ...oauthOptions, returnOnOAuth: true });

@@ -17,12 +17,6 @@ async function loadGroupContext(userId: string): Promise<{ groupId: string; grou
   const now = Date.now();
   const cached = groupCacheByUserId.get(userId);
   if (cached && now - cached.cachedAt < GROUP_CACHE_MS) {
-    logger.debug('[MCP][groups] using cached group context', {
-      userId,
-      groupIdLen: cached.groupId.length,
-      groupNameLen: cached.groupName.length,
-      cacheAgeMs: now - cached.cachedAt,
-    });
     return { groupId: cached.groupId, groupName: cached.groupName };
   }
 
@@ -76,15 +70,9 @@ export type MCPGroupUser = IUser & {
 
 export async function enrichUserForMcpGroups(user?: IUser): Promise<MCPGroupUser | undefined> {
   if (!user?.id) {
-    logger.debug('[MCP][groups] skipping enrichment due to missing user id');
     return user;
   }
 
   const { groupId, groupName } = await loadGroupContext(user.id);
-  logger.debug('[MCP][groups] enrichment result', {
-    userId: user.id,
-    groupIdLen: groupId.length,
-    groupNameLen: groupName.length,
-  });
   return { ...user, groupId, groupName };
 }

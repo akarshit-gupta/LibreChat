@@ -1,6 +1,5 @@
 import { extractEnvVariable } from 'librechat-data-provider';
 import type { MCPOptions } from 'librechat-data-provider';
-import { logger } from '@librechat/data-schemas';
 import type { IUser } from '@librechat/data-schemas';
 import type { RequestBody } from '~/types';
 import { injectMandatoryGroupHeaders } from '~/mcp/headers';
@@ -365,24 +364,10 @@ export function processMCPEnv(params: {
       });
     }
     newObj.headers = injectMandatoryGroupHeaders(processedHeaders, user as Partial<IUser>) ?? {};
-    logger.debug('[MCP][env] processed existing headers with mandatory group injection', {
-      hasUser: Boolean(user?.id),
-      headerNames: Object.keys(newObj.headers).sort(),
-      hasGroupIdHeader: typeof newObj.headers['x-user-group-id'] === 'string',
-      hasGroupNameHeader: typeof newObj.headers['x-user-group-name'] === 'string',
-    });
   } else if ('url' in newObj && newObj.url) {
     const injectedHeaders = injectMandatoryGroupHeaders(undefined, user as Partial<IUser>);
     if (injectedHeaders) {
       (newObj as MCPOptions & { headers?: Record<string, string> }).headers = injectedHeaders;
-      logger.debug('[MCP][env] created headers from mandatory group injection', {
-        hasUser: Boolean(user?.id),
-        headerNames: Object.keys(injectedHeaders).sort(),
-      });
-    } else {
-      logger.debug('[MCP][env] no headers created from mandatory group injection', {
-        hasUser: Boolean(user?.id),
-      });
     }
   }
 
