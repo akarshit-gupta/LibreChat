@@ -76,7 +76,9 @@ export default function Datepicker({ id, value, onChange, placeholder }: Datepic
 
   const monthLabel = useMemo(
     () =>
-      new Intl.DateTimeFormat(i18n.language, { month: 'long', year: 'numeric' }).format(displayMonth),
+      new Intl.DateTimeFormat(i18n.language, { month: 'long', year: 'numeric' }).format(
+        displayMonth,
+      ),
     [displayMonth, i18n.language],
   );
 
@@ -97,9 +99,7 @@ export default function Datepicker({ id, value, onChange, placeholder }: Datepic
   }, [displayMonth, weekStartsOn]);
 
   const displayValue =
-    selected != null
-      ? selected.toLocaleDateString(i18n.language, { dateStyle: 'medium' })
-      : null;
+    selected != null ? selected.toLocaleDateString(i18n.language, { dateStyle: 'medium' }) : null;
 
   return (
     <Popover.Root open={open} onOpenChange={handleOpenChange}>
@@ -167,7 +167,8 @@ export default function Datepicker({ id, value, onChange, placeholder }: Datepic
                   className={cn(
                     'flex h-8 items-center justify-center rounded-md text-sm tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     inMonth ? 'text-text-primary' : 'text-text-secondary opacity-50',
-                    isSelected && 'bg-surface-primary font-medium text-text-primary ring-1 ring-border-medium',
+                    isSelected &&
+                      'bg-surface-primary font-medium text-text-primary ring-1 ring-border-medium',
                     !isSelected && inMonth && 'hover:bg-surface-hover',
                     !isSelected && !inMonth && 'hover:bg-surface-hover/60',
                   )}
