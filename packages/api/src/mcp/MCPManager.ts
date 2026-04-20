@@ -339,6 +339,11 @@ Please follow these instructions when using tools from the respective MCP server
             scopes: process.env.GRAPH_API_SCOPES,
           });
       const mcpUser = await enrichUserForMcpGroups(user);
+      logger.debug(`${logPrefix}[${toolName}] MCP group enrichment complete`, {
+        hasUser: Boolean(mcpUser?.id),
+        groupIdLen: typeof mcpUser?.groupId === 'string' ? mcpUser.groupId.length : 0,
+        groupNameLen: typeof mcpUser?.groupName === 'string' ? mcpUser.groupName.length : 0,
+      });
       const currentOptions = processMCPEnv({
         user: mcpUser,
         body: requestBody,
@@ -347,7 +352,14 @@ Please follow these instructions when using tools from the respective MCP server
         customUserVars,
       });
       if ('headers' in currentOptions) {
+        logger.debug(`${logPrefix}[${toolName}] Applying request headers on connection`, {
+          headerCount: Object.keys(currentOptions.headers || {}).length,
+          hasGroupIdHeader: typeof currentOptions.headers?.['x-user-group-id'] === 'string',
+          hasGroupNameHeader: typeof currentOptions.headers?.['x-user-group-name'] === 'string',
+        });
         connection.setRequestHeaders(currentOptions.headers || {});
+      } else {
+        logger.debug(`${logPrefix}[${toolName}] No headers available on processed MCP options`);
       }
 
       const result = await connection.client.request(

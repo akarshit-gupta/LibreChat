@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import { createUserGroupMethods, logger, runAsSystem } from '@librechat/data-schemas';
+import { logger, runAsSystem } from '@librechat/data-schemas';
+import type { Model } from 'mongoose';
 import type { IGroup, IUser } from '@librechat/data-schemas';
 
 const GROUP_CACHE_MS = 30_000;
@@ -12,33 +13,51 @@ type GroupCacheEntry = {
 
 const groupCacheByUserId = new Map<string, GroupCacheEntry>();
 
-let userGroupMethods: ReturnType<typeof createUserGroupMethods> | null = null;
-
-function getUserGroupMethods() {
-  if (!userGroupMethods) {
-    userGroupMethods = createUserGroupMethods(mongoose);
-  }
-  return userGroupMethods;
-}
-
 async function loadGroupContext(userId: string): Promise<{ groupId: string; groupName: string }> {
-  if (mongoose.connection.readyState !== 1) {
-    return { groupId: '', groupName: '' };
-  }
-
   const now = Date.now();
   const cached = groupCacheByUserId.get(userId);
   if (cached && now - cached.cachedAt < GROUP_CACHE_MS) {
+    logger.debug('[MCP][groups] using cached group context', {
+      userId,
+      groupIdLen: cached.groupId.length,
+      groupNameLen: cached.groupName.length,
+      cacheAgeMs: now - cached.cachedAt,
+    });
     return { groupId: cached.groupId, groupName: cached.groupName };
   }
 
   try {
-    const groups = await runAsSystem(async () => getUserGroupMethods().findGroupsByMemberId(userId));
+    const connection = mongoose.connections.find((conn: { readyState: number }) => conn.readyState === 1);
+    if (!connection) {
+      logger.warn(`[MCP][groups] no active mongoose connection for user ${userId}`);
+      return { groupId: '', groupName: '' };
+    }
+
+    const User = connection.models.User as Model<IUser>;
+    const Group = connection.models.Group as Model<IGroup>;
+    if (!User || !Group) {
+      logger.warn(`[MCP][groups] missing User/Group model on active connection for user ${userId}`);
+      return { groupId: '', groupName: '' };
+    }
+
+    const user = await runAsSystem(async () =>
+      User.findById(userId, { idOnTheSource: 1 }).lean<{ idOnTheSource?: string } | null>(),
+    );
+    if (!user) {
+      logger.debug('[MCP][groups] user not found while resolving groups', { userId });
+      return { groupId: '', groupName: '' };
+    }
+
+    const memberId = user.idOnTheSource || userId;
+    const groups = await runAsSystem(async () =>
+      Group.find({ memberIds: memberId }, { _id: 1, name: 1 }).lean<IGroup[]>(),
+    );
     const groupId = groups.map((group: IGroup) => String(group._id)).join(',');
     const groupName = groups.map((group: IGroup) => group.name).filter(Boolean).join(',');
     groupCacheByUserId.set(userId, { groupId, groupName, cachedAt: now });
     logger.debug('[MCP][groups] resolved group context for user', {
       userId,
+      memberId,
       groupCount: groups.length,
       groupIdLen: groupId.length,
       groupNameLen: groupName.length,
@@ -57,9 +76,15 @@ export type MCPGroupUser = IUser & {
 
 export async function enrichUserForMcpGroups(user?: IUser): Promise<MCPGroupUser | undefined> {
   if (!user?.id) {
+    logger.debug('[MCP][groups] skipping enrichment due to missing user id');
     return user;
   }
 
   const { groupId, groupName } = await loadGroupContext(user.id);
+  logger.debug('[MCP][groups] enrichment result', {
+    userId: user.id,
+    groupIdLen: groupId.length,
+    groupNameLen: groupName.length,
+  });
   return { ...user, groupId, groupName };
 }
