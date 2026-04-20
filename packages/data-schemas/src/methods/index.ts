@@ -18,6 +18,7 @@ import { createPluginAuthMethods, type PluginAuthMethods } from './pluginAuth';
 /* Permissions */
 import { createAccessRoleMethods, type AccessRoleMethods } from './accessRole';
 import { createUserGroupMethods, type UserGroupMethods } from './userGroup';
+import { createUserStatsMethods, type UserStatsMethods } from './userStats';
 import { createAclEntryMethods, permissionBitSupersets, type AclEntryMethods } from './aclEntry';
 import { createSystemGrantMethods, type SystemGrantMethods } from './systemGrant';
 import { createShareMethods, type ShareMethods } from './share';
