@@ -82,6 +82,22 @@ export default function Datepicker({ id, value, onChange, placeholder }: Datepic
     [displayMonth, i18n.language],
   );
 
+  const monthOptions = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, monthIndex) => ({
+        value: monthIndex,
+        label: new Intl.DateTimeFormat(i18n.language, { month: 'long' }).format(
+          new Date(2025, monthIndex, 1),
+        ),
+      })),
+    [i18n.language],
+  );
+
+  const yearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 141 }, (_, index) => currentYear - 100 + index);
+  }, []);
+
   const weekDayLabels = useMemo(() => {
     const ref = startOfWeek(new Date(2025, 5, 15), { weekStartsOn });
     return Array.from({ length: 7 }, (_, i) => addDays(ref, i)).map((d) =>
@@ -134,9 +150,54 @@ export default function Datepicker({ id, value, onChange, placeholder }: Datepic
             >
               <ChevronLeft className="size-4" aria-hidden="true" />
             </button>
-            <span className="min-w-0 flex-1 truncate text-center text-sm font-medium text-text-primary">
-              {monthLabel}
-            </span>
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
+              <label className="sr-only" htmlFor={`${id}-month-select`}>
+                Month
+              </label>
+              <select
+                id={`${id}-month-select`}
+                aria-label="Month"
+                className="w-[8.5rem] rounded-md border border-border-light bg-surface-primary px-2 py-1 text-sm text-text-primary outline-none ring-ring focus-visible:ring-2"
+                value={displayMonth.getMonth()}
+                onChange={(event) => {
+                  const month = Number(event.target.value);
+                  setDisplayMonth(
+                    new Date(displayMonth.getFullYear(), Number.isNaN(month) ? 0 : month, 1),
+                  );
+                }}
+              >
+                {monthOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <label className="sr-only" htmlFor={`${id}-year-select`}>
+                Year
+              </label>
+              <select
+                id={`${id}-year-select`}
+                aria-label="Year"
+                className="w-[5.25rem] rounded-md border border-border-light bg-surface-primary px-2 py-1 text-sm text-text-primary outline-none ring-ring focus-visible:ring-2"
+                value={displayMonth.getFullYear()}
+                onChange={(event) => {
+                  const year = Number(event.target.value);
+                  setDisplayMonth(
+                    new Date(
+                      Number.isNaN(year) ? displayMonth.getFullYear() : year,
+                      displayMonth.getMonth(),
+                      1,
+                    ),
+                  );
+                }}
+              >
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               type="button"
               className="rounded-md p-1 text-text-primary hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -146,6 +207,7 @@ export default function Datepicker({ id, value, onChange, placeholder }: Datepic
               <ChevronRight className="size-4" aria-hidden="true" />
             </button>
           </div>
+          <div className="mb-1 text-center text-xs text-text-secondary">{monthLabel}</div>
           <div className="grid grid-cols-7 gap-1 text-center text-xs text-text-secondary">
             {weekDayLabels.map((label, i) => (
               <div key={i} className="py-1 font-medium">

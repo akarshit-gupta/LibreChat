@@ -20,11 +20,7 @@ function isValidDateInput(value: string): boolean {
   }
   const [y, m, d] = value.split('-').map((n) => parseInt(n, 10));
   const dt = new Date(y, m - 1, d);
-  return (
-    dt.getFullYear() === y &&
-    dt.getMonth() === m - 1 &&
-    dt.getDate() === d
-  );
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
 }
 
 function toApiStartDate(ymd: string): string {
@@ -86,7 +82,9 @@ export default function UsersStatsView() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-text-secondary">{localize('com_ui_admin_users_stats_description')}</p>
+      <p className="text-sm text-text-secondary">
+        {localize('com_ui_admin_users_stats_description')}
+      </p>
 
       <div
         className="flex flex-col gap-3 rounded-lg border border-border-light bg-surface-secondary p-4 sm:flex-row sm:flex-wrap sm:items-end"
@@ -94,7 +92,10 @@ export default function UsersStatsView() {
         aria-label={localize('com_ui_admin_users_stats_filters_aria')}
       >
         <div className="flex min-w-[12rem] flex-1 flex-col gap-1">
-          <label htmlFor="admin-users-stats-start" className="text-xs font-medium text-text-secondary">
+          <label
+            htmlFor="admin-users-stats-start"
+            className="text-xs font-medium text-text-secondary"
+          >
             {localize('com_ui_admin_users_stats_start_label')}
           </label>
           <Datepicker
@@ -105,7 +106,10 @@ export default function UsersStatsView() {
           />
         </div>
         <div className="flex min-w-[12rem] flex-1 flex-col gap-1">
-          <label htmlFor="admin-users-stats-end" className="text-xs font-medium text-text-secondary">
+          <label
+            htmlFor="admin-users-stats-end"
+            className="text-xs font-medium text-text-secondary"
+          >
             {localize('com_ui_admin_users_stats_end_label')}
           </label>
           <Datepicker
@@ -116,7 +120,12 @@ export default function UsersStatsView() {
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" onClick={handleApply} aria-label={localize('com_ui_admin_users_stats_apply')}>
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleApply}
+            aria-label={localize('com_ui_admin_users_stats_apply')}
+          >
             {localize('com_ui_admin_users_stats_apply')}
           </Button>
           <Button type="button" size="sm" variant="outline" onClick={handleClear}>
@@ -163,10 +172,10 @@ export default function UsersStatsView() {
                 <th className="px-4 py-2 font-medium text-text-secondary">
                   {localize('com_ui_admin_users_stats_col_email')}
                 </th>
-                <th className="px-4 py-2 font-medium text-text-secondary text-right">
+                <th className="px-4 py-2 text-right font-medium text-text-secondary">
                   {localize('com_ui_admin_users_stats_col_conversations')}
                 </th>
-                <th className="px-4 py-2 font-medium text-text-secondary text-right">
+                <th className="px-4 py-2 text-right font-medium text-text-secondary">
                   {localize('com_ui_admin_users_stats_col_messages')}
                 </th>
               </tr>
