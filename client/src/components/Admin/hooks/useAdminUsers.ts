@@ -26,3 +26,14 @@ export function useSearchUsers(query: string) {
     },
   );
 }
+
+/**
+ * Query hook for getting user stats.
+ */
+export function useAdminUsersStats(filters: { startDate?: string; endDate?: string }) {
+  return useQuery(
+    ADMIN_QUERY_KEYS.userStats(filters),
+    () => usersApi.getUsersStats(filters),
+    { refetchOnWindowFocus: false },
+  );
+}

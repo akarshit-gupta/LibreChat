@@ -3,6 +3,7 @@ import { ShieldOff, ArrowLeft, ChevronRight } from 'lucide-react';
 import { useHasCapability, useEffectiveCapabilities } from './hooks';
 import AdminSidebar from './AdminSidebar';
 import UsersPanel from './panels/UsersPanel';
+import StatsPanel from './panels/StatsPanel';
 import GroupsPanel from './panels/GroupsPanel';
 import RolesPanel from './panels/RolesPanel';
 import ConfigOverridesPanel from './panels/ConfigOverridesPanel';
@@ -10,6 +11,7 @@ import GrantsPanel from './panels/GrantsPanel';
 
 const TAB_LABELS: Record<string, string> = {
   users: 'Users',
+  stats: 'Stats',
   groups: 'Groups',
   roles: 'Roles',
   config: 'Config',
@@ -75,6 +77,7 @@ export default function AdminLayout() {
           <Routes>
             <Route index element={<Navigate to="users" replace />} />
             <Route path="users" element={<UsersPanel />} />
+            <Route path="stats" element={<StatsPanel />} />
             <Route path="groups" element={<GroupsPanel />} />
             <Route path="roles" element={<RolesPanel />} />
             <Route path="config" element={<ConfigOverridesPanel />} />
