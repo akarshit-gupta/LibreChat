@@ -28,10 +28,12 @@ export async function searchUsers(query: string): Promise<AdminUserSearchResult[
   return data.users;
 }
 
-export async function getUsersStats(params: {
-  startDate?: string;
-  endDate?: string;
-} = {}): Promise<AdminUsersStatsResponse> {
+export async function getUsersStats(
+  params: {
+    startDate?: string;
+    endDate?: string;
+  } = {},
+): Promise<AdminUsersStatsResponse> {
   const searchParams = new URLSearchParams();
   if (params.startDate) {
     searchParams.set('startDate', params.startDate);
