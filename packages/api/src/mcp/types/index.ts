@@ -23,6 +23,12 @@ import type { FlowStateManager } from '~/flow/manager';
 import type { RequestBody } from '~/types/http';
 import type * as o from '~/mcp/oauth/types';
 
+/** Plain user fields + optional MCP group CSVs (not a full Mongoose IUser document). */
+export type MCPGroupUser = Partial<IUser> & {
+  groupId?: string;
+  groupName?: string;
+};
+
 export type StdioOptions = z.infer<typeof StdioOptionsSchema>;
 export type WebSocketOptions = z.infer<typeof WebSocketOptionsSchema>;
 export type SSEOptions = z.infer<typeof SSEOptionsSchema>;
@@ -186,7 +192,7 @@ export interface BasicConnectionOptions {
 
 /** User context for placeholder resolution in MCP connections (non-OAuth and OAuth alike) */
 export interface UserConnectionContext {
-  user?: IUser;
+  user?: IUser | MCPGroupUser;
   customUserVars?: Record<string, string>;
   requestBody?: RequestBody;
   connectionTimeout?: number;
@@ -204,7 +210,7 @@ export interface OAuthConnectionOptions extends UserConnectionContext {
 
 export interface ToolDiscoveryOptions {
   serverName: string;
-  user?: IUser;
+  user?: IUser | MCPGroupUser;
   flowManager?: FlowStateManager<o.MCPOAuthTokens | null>;
   tokenMethods?: TokenMethods;
   signal?: AbortSignal;

@@ -3,6 +3,7 @@ import { logger } from '@librechat/data-schemas';
 import { CallToolResultSchema, ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import type { RequestOptions } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import type { TokenMethods, IUser } from '@librechat/data-schemas';
+import type { MCPGroupUser } from './types';
 import type { GraphTokenResolver } from '~/utils/graph';
 import type { FlowStateManager } from '~/flow/manager';
 import type { MCPOAuthTokens } from './oauth';
@@ -274,7 +275,7 @@ Please follow these instructions when using tools from the respective MCP server
     customUserVars,
     graphTokenResolver,
   }: {
-    user?: IUser;
+    user?: IUser | MCPGroupUser;
     serverName: string;
     /** Pre-resolved config from tool creation context — avoids readThrough TTL and cross-tenant issues */
     serverConfig?: t.ParsedServerConfig;

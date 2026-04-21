@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { logger, runAsSystem } from '@librechat/data-schemas';
 import type { Model } from 'mongoose';
 import type { IGroup, IUser } from '@librechat/data-schemas';
+import type { MCPGroupUser } from './types';
 
 async function loadGroupContext(userId: string): Promise<{ groupId: string; groupName: string }> {
   try {
@@ -46,11 +47,7 @@ async function loadGroupContext(userId: string): Promise<{ groupId: string; grou
   }
 }
 
-/** Plain user fields + MCP group CSVs (not a Mongoose IUser document after spread). */
-export type MCPGroupUser = Partial<IUser> & {
-  groupId?: string;
-  groupName?: string;
-};
+export type { MCPGroupUser };
 
 export async function enrichUserForMcpGroups(user?: IUser): Promise<MCPGroupUser | undefined> {
   if (!user?.id) {
