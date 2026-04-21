@@ -152,7 +152,7 @@ export default function Datepicker({ id, value, onChange, placeholder }: Datepic
             </button>
             <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
               <label className="sr-only" htmlFor={`${id}-month-select`}>
-                Month
+                {localize('com_ui_admin_users_stats_calendar_month')}
               </label>
               <select
                 id={`${id}-month-select`}
