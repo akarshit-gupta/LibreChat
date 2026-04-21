@@ -49,7 +49,9 @@ async function loadGroupContext(userId: string): Promise<{ groupId: string; grou
 
 export type { MCPGroupUser };
 
-export async function enrichUserForMcpGroups(user?: IUser): Promise<MCPGroupUser | undefined> {
+export async function enrichUserForMcpGroups(
+  user?: IUser | MCPGroupUser,
+): Promise<MCPGroupUser | undefined> {
   if (!user?.id) {
     return user === undefined ? undefined : { ...user };
   }

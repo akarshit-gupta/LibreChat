@@ -53,7 +53,7 @@ export class MCPManager extends UserConnectionManager {
   public async getConnection(
     args: {
       serverName: string;
-      user?: IUser;
+      user?: IUser | MCPGroupUser;
       forceNew?: boolean;
       flowManager?: FlowStateManager<MCPOAuthTokens | null>;
       /** Pre-resolved config for config-source servers not in YAML/DB */
