@@ -3,23 +3,7 @@ import { logger, runAsSystem } from '@librechat/data-schemas';
 import type { Model } from 'mongoose';
 import type { IGroup, IUser } from '@librechat/data-schemas';
 
-const GROUP_CACHE_MS = 30_000;
-
-type GroupCacheEntry = {
-  groupId: string;
-  groupName: string;
-  cachedAt: number;
-};
-
-const groupCacheByUserId = new Map<string, GroupCacheEntry>();
-
 async function loadGroupContext(userId: string): Promise<{ groupId: string; groupName: string }> {
-  const now = Date.now();
-  const cached = groupCacheByUserId.get(userId);
-  if (cached && now - cached.cachedAt < GROUP_CACHE_MS) {
-    return { groupId: cached.groupId, groupName: cached.groupName };
-  }
-
   try {
     const connection = mongoose.connections.find((conn: { readyState: number }) => conn.readyState === 1);
     if (!connection) {
@@ -48,7 +32,6 @@ async function loadGroupContext(userId: string): Promise<{ groupId: string; grou
     );
     const groupId = groups.map((group: IGroup) => String(group._id)).join(',');
     const groupName = groups.map((group: IGroup) => group.name).filter(Boolean).join(',');
-    groupCacheByUserId.set(userId, { groupId, groupName, cachedAt: now });
     logger.debug('[MCP][groups] resolved group context for user', {
       userId,
       memberId,
