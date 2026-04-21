@@ -46,14 +46,15 @@ async function loadGroupContext(userId: string): Promise<{ groupId: string; grou
   }
 }
 
-export type MCPGroupUser = IUser & {
+/** Plain user fields + MCP group CSVs (not a Mongoose IUser document after spread). */
+export type MCPGroupUser = Partial<IUser> & {
   groupId?: string;
   groupName?: string;
 };
 
 export async function enrichUserForMcpGroups(user?: IUser): Promise<MCPGroupUser | undefined> {
   if (!user?.id) {
-    return user;
+    return user === undefined ? undefined : { ...user };
   }
 
   const { groupId, groupName } = await loadGroupContext(user.id);
