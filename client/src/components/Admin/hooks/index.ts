@@ -1,5 +1,5 @@
 export { useEffectiveCapabilities, useHasCapability } from './useAdminCapabilities';
-export { useAdminUsers, useSearchUsers } from './useAdminUsers';
+export { useAdminUsers, useSearchUsers, useAdminUsersStats } from './useAdminUsers';
 export {
   useAdminGroups,
   useAdminGroup,

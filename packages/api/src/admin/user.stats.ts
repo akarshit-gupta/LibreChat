@@ -9,6 +9,7 @@ export interface AdminUserStatsDeps {
     $lte?: Date;
   }) => Promise<AdminUsersStatsResponse['stats']>;
 }
+const STATS_SLASH_DATETIME = /^(\d{4})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
 
 function firstQueryString(value: unknown): string | undefined {
   if (typeof value === 'string') {
@@ -20,7 +21,7 @@ function firstQueryString(value: unknown): string | undefined {
   return undefined;
 }
 
-function parseIsoDateQueryValue(raw: string | undefined): Date | undefined | 'invalid' {
+function parseStatsDateQueryValue(raw: string | undefined): Date | undefined | 'invalid' {
   if (raw == null) {
     return undefined;
   }
@@ -28,6 +29,43 @@ function parseIsoDateQueryValue(raw: string | undefined): Date | undefined | 'in
   if (trimmed.length === 0) {
     return undefined;
   }
+
+  const parts = STATS_SLASH_DATETIME.exec(trimmed);
+  if (parts) {
+    const y = Number(parts[1]);
+    const monthIndex = Number(parts[2]) - 1;
+    const day = Number(parts[3]);
+    const hour = Number(parts[4]);
+    const minute = Number(parts[5]);
+    const second = Number(parts[6]);
+    if (
+      parts[2].length !== 2 ||
+      parts[3].length !== 2 ||
+      parts[4].length !== 2 ||
+      parts[5].length !== 2 ||
+      parts[6].length !== 2 ||
+      Number.isNaN(y) ||
+      monthIndex < 0 ||
+      monthIndex > 11 ||
+      day < 1 ||
+      day > 31 ||
+      hour > 23 ||
+      minute > 59 ||
+      second > 59
+    ) {
+      return 'invalid';
+    }
+    const local = new Date(y, monthIndex, day, hour, minute, second);
+    if (
+      local.getFullYear() !== y ||
+      local.getMonth() !== monthIndex ||
+      local.getDate() !== day
+    ) {
+      return 'invalid';
+    }
+    return local;
+  }
+
   const parsed = new Date(trimmed);
   if (Number.isNaN(parsed.getTime())) {
     return 'invalid';
@@ -38,22 +76,24 @@ function parseIsoDateQueryValue(raw: string | undefined): Date | undefined | 'in
 function createGetUsersStatsHandler(deps: AdminUserStatsDeps) {
   const { getAdminUsersStats } = deps;
 
-  return async function getUsersStatsHandler(req: ServerRequest, res: Response) {
+  return   async function getUsersStatsHandler(req: ServerRequest, res: Response) {
     try {
       const startRaw = firstQueryString(req.query.startDate);
       const endRaw = firstQueryString(req.query.endDate);
-      const startParsed = parseIsoDateQueryValue(startRaw);
-      const endParsed = parseIsoDateQueryValue(endRaw);
+      const startParsed = parseStatsDateQueryValue(startRaw);
+      const endParsed = parseStatsDateQueryValue(endRaw);
 
       if (startParsed === 'invalid') {
-        return res
-          .status(400)
-          .json({ error: 'Invalid startDate: expected a valid ISO 8601 datetime string' });
+        return res.status(400).json({
+          error:
+            'Invalid startDate: use YYYY/MM/DD HH:mm:ss (e.g. 2026/04/15 00:00:00) or ISO 8601',
+        });
       }
       if (endParsed === 'invalid') {
-        return res
-          .status(400)
-          .json({ error: 'Invalid endDate: expected a valid ISO 8601 datetime string' });
+        return res.status(400).json({
+          error:
+            'Invalid endDate: use YYYY/MM/DD HH:mm:ss (e.g. 2026/04/16 23:59:59) or ISO 8601',
+        });
       }
 
       if (startParsed && endParsed && startParsed.getTime() > endParsed.getTime()) {
