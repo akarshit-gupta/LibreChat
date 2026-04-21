@@ -697,6 +697,8 @@
   "com_ui_admin_users_stats_filters_aria": "Filter usage statistics by date range",
   "com_ui_admin_users_stats_load_error": "Failed to load usage statistics",
   "com_ui_admin_users_stats_start_label": "Start (optional)",
+  "com_ui_admin_users_stats_calendar_year": "Year",
+  "com_ui_admin_users_stats_calendar_month": "Month",
   "com_ui_admin_settings": "Admin Settings",
   "com_ui_admin_settings_section": "Admin Settings - {{section}}",
   "com_ui_advanced": "Advanced",

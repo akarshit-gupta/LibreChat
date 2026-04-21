@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { BarChart2 } from 'lucide-react';
 import { Button } from '@librechat/client';
 import { useLocalize } from '~/hooks';
@@ -80,6 +81,61 @@ export default function UsersStatsView() {
   const rows = data?.stats ?? [];
   const showTable = !loading && !statsLoadError && !error;
 
+  let statsMainContent: ReactNode = null;
+  if (statsLoadError && parseApiError(statsLoadError).status === 403) {
+    statsMainContent = <ErrorMessage variant="forbidden" />;
+  } else if (statsLoadError) {
+    statsMainContent = (
+      <ErrorMessage
+        variant="inline"
+        message={getErrorMessage(statsLoadError, localize('com_ui_admin_users_stats_load_error'))}
+      />
+    );
+  } else if (loading && rows.length === 0) {
+    statsMainContent = <LoadingState rows={6} />;
+  } else if (showTable && rows.length === 0) {
+    statsMainContent = (
+      <EmptyState message={localize('com_ui_admin_users_stats_empty')} icon={BarChart2} />
+    );
+  } else if (showTable) {
+    statsMainContent = (
+      <div className="overflow-hidden rounded-lg border border-border-light">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-border-light bg-surface-secondary">
+            <tr>
+              <th className="px-4 py-2 font-medium text-text-secondary">
+                {localize('com_ui_admin_users_stats_col_name')}
+              </th>
+              <th className="px-4 py-2 font-medium text-text-secondary">
+                {localize('com_ui_admin_users_stats_col_email')}
+              </th>
+              <th className="px-4 py-2 text-right font-medium text-text-secondary">
+                {localize('com_ui_admin_users_stats_col_conversations')}
+              </th>
+              <th className="px-4 py-2 text-right font-medium text-text-secondary">
+                {localize('com_ui_admin_users_stats_col_messages')}
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border-light">
+            {rows.map((row) => (
+              <tr key={row.userId} className="hover:bg-surface-hover">
+                <td className="px-4 py-2 font-medium text-text-primary">{row.name}</td>
+                <td className="px-4 py-2 text-text-secondary">{row.email ?? '—'}</td>
+                <td className="px-4 py-2 text-right tabular-nums text-text-primary">
+                  {row.conversationsCount.toLocaleString()}
+                </td>
+                <td className="px-4 py-2 text-right tabular-nums text-text-primary">
+                  {row.messagesCount.toLocaleString()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-text-secondary">
@@ -150,53 +206,7 @@ export default function UsersStatsView() {
 
       {error && <ErrorMessage variant="inline" message={error} />}
 
-      {statsLoadError && parseApiError(statsLoadError).status === 403 ? (
-        <ErrorMessage variant="forbidden" />
-      ) : statsLoadError ? (
-        <ErrorMessage
-          variant="inline"
-          message={getErrorMessage(statsLoadError, localize('com_ui_admin_users_stats_load_error'))}
-        />
-      ) : loading && rows.length === 0 ? (
-        <LoadingState rows={6} />
-      ) : showTable && rows.length === 0 ? (
-        <EmptyState message={localize('com_ui_admin_users_stats_empty')} icon={BarChart2} />
-      ) : showTable ? (
-        <div className="overflow-hidden rounded-lg border border-border-light">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-border-light bg-surface-secondary">
-              <tr>
-                <th className="px-4 py-2 font-medium text-text-secondary">
-                  {localize('com_ui_admin_users_stats_col_name')}
-                </th>
-                <th className="px-4 py-2 font-medium text-text-secondary">
-                  {localize('com_ui_admin_users_stats_col_email')}
-                </th>
-                <th className="px-4 py-2 text-right font-medium text-text-secondary">
-                  {localize('com_ui_admin_users_stats_col_conversations')}
-                </th>
-                <th className="px-4 py-2 text-right font-medium text-text-secondary">
-                  {localize('com_ui_admin_users_stats_col_messages')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-light">
-              {rows.map((row) => (
-                <tr key={row.userId} className="hover:bg-surface-hover">
-                  <td className="px-4 py-2 font-medium text-text-primary">{row.name}</td>
-                  <td className="px-4 py-2 text-text-secondary">{row.email ?? '—'}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-text-primary">
-                    {row.conversationsCount.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-2 text-right tabular-nums text-text-primary">
-                    {row.messagesCount.toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
+      {statsMainContent}
     </div>
   );
 }

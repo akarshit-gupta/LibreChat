@@ -173,7 +173,7 @@ export default function Datepicker({ id, value, onChange, placeholder }: Datepic
                 ))}
               </select>
               <label className="sr-only" htmlFor={`${id}-year-select`}>
-                Year
+                {localize('com_ui_admin_users_stats_calendar_year')}
               </label>
               <select
                 id={`${id}-year-select`}
