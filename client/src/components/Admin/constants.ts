@@ -1,4 +1,4 @@
-import { Users, Group, ShieldCheck, Settings, KeyRound } from 'lucide-react';
+import { Users, Group, KeyRound, Settings, ShieldCheck, BarChart2 } from 'lucide-react';
 import type { AdminTab } from './types';
 
 /* ── React Query key factories ──────────────────────────────────────── */
@@ -6,6 +6,8 @@ import type { AdminTab } from './types';
 export const ADMIN_QUERY_KEYS = {
   users: ['admin', 'users'] as const,
   userSearch: (q: string) => ['admin', 'users', 'search', q] as const,
+  userStats: (filters: { startDate?: string; endDate?: string }) =>
+    ['admin', 'users', 'stats', filters.startDate ?? '', filters.endDate ?? ''] as const,
   groups: ['admin', 'groups'] as const,
   group: (id: string) => ['admin', 'groups', id] as const,
   groupMembers: (id: string) => ['admin', 'groups', id, 'members'] as const,
@@ -28,6 +30,13 @@ export const ADMIN_TABS: AdminTab[] = [
     label: 'Users',
     path: 'users',
     icon: Users,
+    requiredCapability: 'read:users',
+  },
+  {
+    id: 'stats',
+    label: 'Stats',
+    path: 'stats',
+    icon: BarChart2,
     requiredCapability: 'read:users',
   },
   {
