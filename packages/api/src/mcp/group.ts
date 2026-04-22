@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { logger, runAsSystem } from '@librechat/data-schemas';
 import type { Model } from 'mongoose';
 import type { IGroup, IUser } from '@librechat/data-schemas';
-import type { MCPGroupUser } from './types';
+import type { IUserGroup } from './types';
 
 async function loadGroupContext(userId: string): Promise<{ groupId: string; groupName: string }> {
   try {
@@ -47,11 +47,11 @@ async function loadGroupContext(userId: string): Promise<{ groupId: string; grou
   }
 }
 
-export type { MCPGroupUser };
+export type { IUserGroup };
 
 export async function enrichUserForMcpGroups(
-  user?: IUser | MCPGroupUser,
-): Promise<MCPGroupUser | undefined> {
+  user?: IUser | IUserGroup,
+): Promise<IUserGroup | undefined> {
   if (!user?.id) {
     return user === undefined ? undefined : { ...user };
   }

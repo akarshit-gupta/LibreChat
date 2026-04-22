@@ -1,6 +1,6 @@
 import { logger } from '@librechat/data-schemas';
 import type { IUser } from '@librechat/data-schemas';
-import type { MCPGroupUser } from '~/mcp/types';
+import type { IUserGroup } from '~/mcp/types';
 import {
   GRAPH_TOKEN_PLACEHOLDER,
   DEFAULT_GRAPH_SCOPES,
@@ -43,7 +43,7 @@ export type GraphTokenResolver = (
  * Options for processing Graph token placeholders.
  */
 export interface GraphTokenOptions {
-  user?: IUser | MCPGroupUser;
+  user?: IUser | IUserGroup;
   graphTokenResolver?: GraphTokenResolver;
   scopes?: string;
 }

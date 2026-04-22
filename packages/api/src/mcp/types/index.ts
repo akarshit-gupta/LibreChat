@@ -24,7 +24,7 @@ import type { RequestBody } from '~/types/http';
 import type * as o from '~/mcp/oauth/types';
 
 /** Plain user fields + optional MCP group CSVs (not a full Mongoose IUser document). */
-export type MCPGroupUser = Partial<IUser> & {
+export type IUserGroup = Partial<IUser> & {
   groupId?: string;
   groupName?: string;
 };
@@ -192,7 +192,7 @@ export interface BasicConnectionOptions {
 
 /** User context for placeholder resolution in MCP connections (non-OAuth and OAuth alike) */
 export interface UserConnectionContext {
-  user?: IUser | MCPGroupUser;
+  user?: IUser | IUserGroup;
   customUserVars?: Record<string, string>;
   requestBody?: RequestBody;
   connectionTimeout?: number;
@@ -210,7 +210,7 @@ export interface OAuthConnectionOptions extends UserConnectionContext {
 
 export interface ToolDiscoveryOptions {
   serverName: string;
-  user?: IUser | MCPGroupUser;
+  user?: IUser | IUserGroup;
   flowManager?: FlowStateManager<o.MCPOAuthTokens | null>;
   tokenMethods?: TokenMethods;
   signal?: AbortSignal;
