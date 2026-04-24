@@ -11,6 +11,11 @@ import { processMCPEnv } from '~/utils';
 jest.mock('~/mcp/connection');
 jest.mock('~/mcp/oauth');
 jest.mock('~/utils');
+jest.mock('~/mcp/group', () => ({
+  enrichUserForMcpGroups: jest.fn(
+    async (user: import('@librechat/data-schemas').IUser | undefined) => user,
+  ),
+}));
 jest.mock('@librechat/data-schemas', () => ({
   logger: {
     info: jest.fn(),
@@ -129,6 +134,8 @@ describe('MCPConnectionFactory', () => {
         options: mockServerConfig,
         user: mockUser,
         dbSourced: undefined,
+        body: undefined,
+        customUserVars: undefined,
       });
       expect(mockMCPConnection).toHaveBeenCalledWith({
         serverName: 'test-server',
@@ -867,6 +874,8 @@ describe('MCPConnectionFactory', () => {
           user: mockUser,
           options: serverConfig,
           customUserVars: { MY_CUSTOM_KEY: 'c527bd0abc123' },
+          body: undefined,
+          dbSourced: undefined,
         }),
       );
     });

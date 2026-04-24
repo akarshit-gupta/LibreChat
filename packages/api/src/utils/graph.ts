@@ -1,5 +1,6 @@
 import { logger } from '@librechat/data-schemas';
 import type { IUser } from '@librechat/data-schemas';
+import type { IUserGroup } from '~/mcp/types';
 import {
   GRAPH_TOKEN_PLACEHOLDER,
   DEFAULT_GRAPH_SCOPES,
@@ -42,7 +43,7 @@ export type GraphTokenResolver = (
  * Options for processing Graph token placeholders.
  */
 export interface GraphTokenOptions {
-  user?: IUser;
+  user?: IUser | IUserGroup;
   graphTokenResolver?: GraphTokenResolver;
   scopes?: string;
 }
@@ -133,7 +134,7 @@ export async function resolveGraphTokenPlaceholder(
   try {
     const graphScopes = scopes || process.env.GRAPH_API_SCOPES || DEFAULT_GRAPH_SCOPES;
     const graphTokenResponse = await graphTokenResolver(
-      user,
+      user as IUser,
       tokenInfo.accessToken,
       graphScopes,
       true, // Use cache
