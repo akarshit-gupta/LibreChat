@@ -17,13 +17,13 @@ function logApiResponse(req, res, next) {
     const ms = Date.now() - start;
     const path = req.originalUrl || req.path || '';
     const { statusCode } = res;
-    const line = `${req.method} ${path} ${statusCode} ${ms}ms`;
+    const line = `${req.method} ${path} status:${statusCode} duration:${ms}ms`;
     const meta = {
       msg: 'http_request',
       method: req.method,
       path,
       status: statusCode,
-      ms,
+      duration: ms,
     };
     if (statusCode >= 500) {
       logger.error(line, meta);
