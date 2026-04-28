@@ -17,9 +17,9 @@ function logApiResponse(req, res, next) {
     const ms = Date.now() - start;
     const path = req.originalUrl || req.path || '';
     const { statusCode } = res;
-    const line = `${req.method} ${path} status:${statusCode} duration:${ms}ms`;
+    const line = `${req.method} ${path} ${statusCode} ${ms}ms`;
     const meta = {
-      msg: 'http_request',
+      event: 'http_request',
       method: req.method,
       path,
       status: statusCode,

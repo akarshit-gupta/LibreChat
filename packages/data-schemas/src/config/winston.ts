@@ -1,6 +1,12 @@
 import winston from 'winston';
 import 'winston-daily-rotate-file';
-import { redactFormat, redactMessage, debugTraverse, jsonTruncateFormat } from './parsers';
+import {
+  redactFormat,
+  redactMessage,
+  debugTraverse,
+  jsonTruncateFormat,
+  jsonMessageAsMsgFormat,
+} from './parsers';
 import { getLogDirectory } from './utils';
 
 const logDir = getLogDirectory();
@@ -51,7 +57,7 @@ const transports: winston.transport[] = [
     zippedArchive: true,
     maxSize: '20m',
     maxFiles: '14d',
-    format: winston.format.combine(fileFormat, winston.format.json()),
+    format: winston.format.combine(fileFormat, jsonMessageAsMsgFormat(), winston.format.json()),
   }),
 ];
 
@@ -90,7 +96,12 @@ if (useDebugConsole) {
     new winston.transports.Console({
       level: consoleLogLevel,
       format: useConsoleJson
-        ? winston.format.combine(fileFormat, jsonTruncateFormat(), winston.format.json())
+        ? winston.format.combine(
+            fileFormat,
+            jsonTruncateFormat(),
+            jsonMessageAsMsgFormat(),
+            winston.format.json(),
+          )
         : winston.format.combine(fileFormat, debugTraverse),
     }),
   );
@@ -98,7 +109,12 @@ if (useDebugConsole) {
   transports.push(
     new winston.transports.Console({
       level: consoleLogLevel,
-      format: winston.format.combine(fileFormat, jsonTruncateFormat(), winston.format.json()),
+      format: winston.format.combine(
+        fileFormat,
+        jsonTruncateFormat(),
+        jsonMessageAsMsgFormat(),
+        winston.format.json(),
+      ),
     }),
   );
 } else {

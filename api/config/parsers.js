@@ -347,10 +347,23 @@ const jsonTruncateFormat = winston.format((info) => {
   return truncateObject(info);
 });
 
+/**
+ * Renames Winston's `message` to `msg` for JSON output so ingest stacks
+ * (e.g. Elasticsearch) can avoid reserved `message` field collisions.
+ */
+const jsonMessageAsMsgFormat = winston.format((info) => {
+  if (Object.prototype.hasOwnProperty.call(info, 'message')) {
+    info.msg = info.message;
+    delete info.message;
+  }
+  return info;
+});
+
 module.exports = {
   redactFormat,
   redactMessage,
   debugTraverse,
   jsonTruncateFormat,
+  jsonMessageAsMsgFormat,
   formatConsoleMeta,
 };
