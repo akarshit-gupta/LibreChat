@@ -7,6 +7,7 @@ const {
   redactMessage,
   debugTraverse,
   jsonTruncateFormat,
+  jsonMessageAsMsgFormat,
   formatConsoleMeta,
 } = require('./parsers');
 
@@ -140,7 +141,12 @@ if (useDebugConsole) {
     new winston.transports.Console({
       level: consoleLogLevel,
       format: useConsoleJson
-        ? winston.format.combine(fileFormat, jsonTruncateFormat(), winston.format.json())
+        ? winston.format.combine(
+            fileFormat,
+            jsonTruncateFormat(),
+            jsonMessageAsMsgFormat(),
+            winston.format.json(),
+          )
         : winston.format.combine(fileFormat, debugTraverse),
     }),
   );
@@ -148,7 +154,12 @@ if (useDebugConsole) {
   transports.push(
     new winston.transports.Console({
       level: consoleLogLevel,
-      format: winston.format.combine(fileFormat, jsonTruncateFormat(), winston.format.json()),
+      format: winston.format.combine(
+        fileFormat,
+        jsonTruncateFormat(),
+        jsonMessageAsMsgFormat(),
+        winston.format.json(),
+      ),
     }),
   );
 } else {
