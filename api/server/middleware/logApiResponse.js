@@ -21,7 +21,6 @@ function logApiResponse(req, res, next) {
     const meta = {
       event: 'http_request',
       method: req.method,
-      path,
       status: statusCode,
       duration: ms,
     };
