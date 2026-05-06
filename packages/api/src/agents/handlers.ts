@@ -10,6 +10,7 @@ import type {
   ToolExecuteBatchRequest,
 } from '@librechat/agents';
 import { Types } from 'mongoose';
+import type { CodeEnvRef } from 'librechat-data-provider';
 import type { StructuredToolInterface } from '@librechat/agents/langchain/tools';
 import type { SkillFileRecord } from './skillFiles';
 import type { ServerRequest } from '~/types';
@@ -93,12 +94,13 @@ export interface ToolExecuteOptions {
   getSessionInfo?: (fileIdentifier: string) => Promise<string | null>;
   /** 23-hour freshness check */
   checkIfActive?: (dateString: string) => boolean;
-  /** Persists codeEnvIdentifiers on skill files after upload */
+  /** Persists codeEnvIdentifiers (and structured codeEnvRef) on skill files after upload */
   updateSkillFileCodeEnvIds?: (
     updates: Array<{
       skillId: Types.ObjectId | string;
       relativePath: string;
       codeEnvIdentifier: string;
+      codeEnvRef?: CodeEnvRef;
     }>,
   ) => Promise<void>;
   /** Loads a skill file by path (for read_file tool) */

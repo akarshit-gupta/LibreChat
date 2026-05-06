@@ -1374,7 +1374,7 @@ describe('SkillFile methods', () => {
      * egress per chat load). Pinning the contract here so the caller
      * can warn-log on partial writes instead of failing closed.
      */
-    it('persists codeEnvIdentifier and reports matched/modified counts', async () => {
+    it('persists codeEnvIdentifier + codeEnvRef and reports matched/modified counts', async () => {
       const { skill } = await methods.createSkill(makeSkillInput());
       await methods.upsertSkillFile({
         skillId: skill._id,
@@ -1388,11 +1388,17 @@ describe('SkillFile methods', () => {
         author: owner._id,
       });
 
+      const entityId = skill._id.toString();
       const result = await methods.updateSkillFileCodeEnvIds([
         {
           skillId: skill._id,
           relativePath: 'scripts/a.sh',
-          codeEnvIdentifier: `session-1/file-1?entity_id=${skill._id.toString()}`,
+          codeEnvIdentifier: `session-1/file-1?entity_id=${entityId}`,
+          codeEnvRef: {
+            storage_session_id: 'session-1',
+            file_id: 'file-1',
+            entity_id: entityId,
+          },
         },
       ]);
 
@@ -1400,7 +1406,41 @@ describe('SkillFile methods', () => {
       expect(result.modifiedCount).toBe(1);
 
       const files = await methods.listSkillFiles(skill._id);
-      expect(files[0].codeEnvIdentifier).toBe(`session-1/file-1?entity_id=${skill._id.toString()}`);
+      expect(files[0].codeEnvIdentifier).toBe(`session-1/file-1?entity_id=${entityId}`);
+      expect(files[0].codeEnvRef).toMatchObject({
+        storage_session_id: 'session-1',
+        file_id: 'file-1',
+        entity_id: entityId,
+      });
+    });
+
+    it('persists only legacy codeEnvIdentifier when codeEnvRef is omitted', async () => {
+      const { skill } = await methods.createSkill(makeSkillInput());
+      await methods.upsertSkillFile({
+        skillId: skill._id,
+        relativePath: 'scripts/legacy.sh',
+        file_id: 'f-legacy',
+        filename: 'legacy.sh',
+        filepath: '/legacy',
+        source: 'local',
+        mimeType: 'text/plain',
+        bytes: 1,
+        author: owner._id,
+      });
+
+      const result = await methods.updateSkillFileCodeEnvIds([
+        {
+          skillId: skill._id,
+          relativePath: 'scripts/legacy.sh',
+          codeEnvIdentifier: 'sid-legacy/fid-legacy',
+        },
+      ]);
+
+      expect(result.matchedCount).toBe(1);
+      const files = await methods.listSkillFiles(skill._id);
+      const legacy = files.find((f) => f.relativePath === 'scripts/legacy.sh');
+      expect(legacy?.codeEnvIdentifier).toBe('sid-legacy/fid-legacy');
+      expect(legacy?.codeEnvRef).toBeUndefined();
     });
 
     it('reports modifiedCount=0 when no SkillFile rows match the (skillId, relativePath) filter', async () => {

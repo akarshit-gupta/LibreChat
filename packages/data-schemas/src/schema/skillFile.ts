@@ -99,6 +99,17 @@ const skillFileSchema: Schema<ISkillFileDocument> = new Schema(
     codeEnvIdentifier: {
       type: String,
     },
+    codeEnvRef: {
+      type: new Schema(
+        {
+          storage_session_id: { type: String, required: true },
+          file_id: { type: String, required: true },
+          entity_id: { type: String },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
   },
   {
     timestamps: true,

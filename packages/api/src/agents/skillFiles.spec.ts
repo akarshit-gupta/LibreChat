@@ -236,16 +236,21 @@ describe('primeInvokedSkills — execute_code capability gate', () => {
         skillId: SKILL_ID,
         relativePath: 'references/style.md',
         codeEnvIdentifier: `session-42/file-1?entity_id=${SKILL_ID.toString()}`,
+        codeEnvRef: {
+          storage_session_id: 'session-42',
+          file_id: 'file-1',
+          entity_id: SKILL_ID.toString(),
+        },
       },
     ]);
   });
 
-  it('parses entity_id off codeEnvIdentifier in the cached-skills hot path', async () => {
+  it('reads codeEnvRef in the cached-skills hot path when present', async () => {
     /* When all skill files are still active in codeapi, primeInvokedSkills
      * skips the batch upload entirely and reconstructs file refs from each
-     * skill file's persisted `codeEnvIdentifier`. The query string carries
-     * `?entity_id=<skillId>`, which must survive into `_injected_files` so
-     * downstream authorization still uses the skill's scope. */
+     * skill file's persisted identity. The structured `codeEnvRef` carries
+     * `entity_id`, which must survive into `_injected_files` so downstream
+     * authorization still uses the skill's scope. */
     const listSkillFiles = jest.fn().mockResolvedValue([
       {
         relativePath: 'references/style.md',
@@ -253,7 +258,11 @@ describe('primeInvokedSkills — execute_code capability gate', () => {
         filepath: '/storage/brand-guidelines/references/style.md',
         source: 's3',
         bytes: 256,
-        codeEnvIdentifier: `session-cached/file-cached?entity_id=${SKILL_ID.toString()}`,
+        codeEnvRef: {
+          storage_session_id: 'session-cached',
+          file_id: 'file-cached',
+          entity_id: SKILL_ID.toString(),
+        },
       },
     ]);
     const batchUploadCodeEnvFiles = jest.fn();
@@ -274,6 +283,43 @@ describe('primeInvokedSkills — execute_code capability gate', () => {
         id: 'file-cached',
         name: 'brand-guidelines/references/style.md',
         session_id: 'session-cached',
+        entity_id: SKILL_ID.toString(),
+      },
+    ]);
+  });
+
+  it('falls back to parsing legacy codeEnvIdentifier when codeEnvRef is missing', async () => {
+    /* Records written before the structured-ref migration carry only the
+     * legacy magic string. `resolveCodeEnvRef` parses it transparently so
+     * cache-hit reads keep working without forcing a migration first. */
+    const listSkillFiles = jest.fn().mockResolvedValue([
+      {
+        relativePath: 'references/style.md',
+        filename: 'style.md',
+        filepath: '/storage/brand-guidelines/references/style.md',
+        source: 's3',
+        bytes: 256,
+        codeEnvIdentifier: `session-legacy/file-legacy?entity_id=${SKILL_ID.toString()}`,
+      },
+    ]);
+    const batchUploadCodeEnvFiles = jest.fn();
+    const deps = makeDeps({
+      codeEnvAvailable: true,
+      listSkillFiles,
+      batchUploadCodeEnvFiles,
+      getSessionInfo: jest.fn().mockResolvedValue('2026-05-05T00:00:00Z'),
+      checkIfActive: jest.fn().mockReturnValue(true),
+    });
+
+    const result = await primeInvokedSkills(deps);
+
+    expect(batchUploadCodeEnvFiles).not.toHaveBeenCalled();
+    const codeSession = result.initialSessions?.get('execute_code');
+    expect(codeSession?.files).toEqual([
+      {
+        id: 'file-legacy',
+        name: 'brand-guidelines/references/style.md',
+        session_id: 'session-legacy',
         entity_id: SKILL_ID.toString(),
       },
     ]);

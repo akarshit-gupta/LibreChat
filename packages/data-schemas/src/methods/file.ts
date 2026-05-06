@@ -128,7 +128,10 @@ export function createFileMethods(mongoose: typeof import('mongoose')) {
         conversationId,
         context: FileContext.execute_code,
         messageId: { $exists: true, $in: messageIds },
-        'metadata.fileIdentifier': { $exists: true },
+        $or: [
+          { 'metadata.fileIdentifier': { $exists: true } },
+          { 'metadata.codeEnvRef': { $exists: true } },
+        ],
       };
 
       const selectFields: SelectProjection = { text: 0 };

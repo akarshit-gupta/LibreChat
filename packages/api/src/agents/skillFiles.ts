@@ -1,7 +1,9 @@
 import { Readable } from 'stream';
 import { Constants } from '@librechat/agents';
 import { logger } from '@librechat/data-schemas';
+import { resolveCodeEnvRef, formatCodeEnvIdentifier } from 'librechat-data-provider';
 import type { ToolSessionMap, CodeSessionContext } from '@librechat/agents';
+import type { CodeEnvRef } from 'librechat-data-provider';
 import type { Types } from 'mongoose';
 import type { ServerRequest } from '~/types';
 import { extractInvokedSkillsFromPayload } from './run';
@@ -13,6 +15,7 @@ export interface SkillFileRecord {
   source: string;
   bytes: number;
   codeEnvIdentifier?: string;
+  codeEnvRef?: CodeEnvRef;
 }
 
 export interface PrimeSkillFilesParams {
@@ -41,12 +44,15 @@ export interface PrimeSkillFilesParams {
   checkIfActive?: (dateString: string) => boolean;
   /** Persists codeEnvIdentifier on skill files after upload. Implementations
    *  warn-log on partial writes (matchedCount/modifiedCount mismatch)
-   *  internally — caller can fire-and-forget without losing visibility. */
+   *  internally — caller can fire-and-forget without losing visibility.
+   *  `codeEnvRef` is the structured form persisted alongside the legacy
+   *  string during the dual-write transition. */
   updateSkillFileCodeEnvIds?: (
     updates: Array<{
       skillId: Types.ObjectId | string;
       relativePath: string;
       codeEnvIdentifier: string;
+      codeEnvRef?: CodeEnvRef;
     }>,
   ) => Promise<{ matchedCount: number; modifiedCount: number } | void>;
 }
@@ -54,16 +60,6 @@ export interface PrimeSkillFilesParams {
 export interface PrimeSkillFilesResult {
   session_id: string;
   files: Array<{ id: string; session_id: string; name: string; entity_id?: string }>;
-}
-
-/** Parses `entity_id` out of a persisted `codeEnvIdentifier`'s query string.
- *  Returns `undefined` when the identifier has no query string or no
- *  `entity_id` (legacy user-attachment uploads). */
-function parseEntityIdFromCodeEnvIdentifier(identifier: string): string | undefined {
-  const queryString = identifier.split('?')[1];
-  if (!queryString) return undefined;
-  const value = new URLSearchParams(queryString).get('entity_id');
-  return value && value.length > 0 ? value : undefined;
 }
 
 /**
@@ -95,24 +91,22 @@ export async function primeSkillFiles(
   // updateSkillFileCodeEnvIds can leave mixed session IDs. Checking every
   // distinct session prevents serving stale identifiers that 404 in code env.
   if (getSessionInfo && checkIfActive && skillFiles.length > 0) {
+    const resolvedRefs = skillFiles.map((sf) => ({ sf, ref: resolveCodeEnvRef(sf) }));
     // All files must have identifiers for the cache to be complete.
     // Any missing identifier means partial persistence — fall through to re-upload.
-    const allHaveIds = skillFiles.every((sf) => sf.codeEnvIdentifier);
-    if (allHaveIds) {
-      const sessionIds = new Set(
-        skillFiles.map((sf) => (sf.codeEnvIdentifier as string).split('?')[0].split('/')[0]),
-      );
+    const allHaveRefs = resolvedRefs.every(({ ref }) => ref !== undefined);
+    if (allHaveRefs) {
+      const refsBySession = new Map<string, CodeEnvRef>();
+      for (const { ref } of resolvedRefs) {
+        if (ref && !refsBySession.has(ref.storage_session_id)) {
+          refsBySession.set(ref.storage_session_id, ref);
+        }
+      }
 
       try {
         const checkResults = await Promise.all(
-          Array.from(sessionIds).map(async (sid) => {
-            const representative = skillFiles.find((sf) =>
-              sf.codeEnvIdentifier!.startsWith(`${sid}/`),
-            );
-            if (!representative) {
-              return false;
-            }
-            const lastModified = await getSessionInfo(representative.codeEnvIdentifier!);
+          Array.from(refsBySession.values()).map(async (ref) => {
+            const lastModified = await getSessionInfo(formatCodeEnvIdentifier(ref));
             return !!(lastModified && checkIfActive(lastModified));
           }),
         );
@@ -120,21 +114,19 @@ export async function primeSkillFiles(
 
         if (allActive) {
           const files: PrimeSkillFilesResult['files'] = [];
-          for (const sf of skillFiles) {
-            const identifier = sf.codeEnvIdentifier as string;
-            const [sid, fid] = identifier.split('?')[0].split('/');
-            const entity_id = parseEntityIdFromCodeEnvIdentifier(identifier);
+          for (const { sf, ref } of resolvedRefs) {
+            if (!ref) continue;
             files.push({
-              id: fid,
-              session_id: sid,
+              id: ref.file_id,
+              session_id: ref.storage_session_id,
               name: `${skill.name}/${sf.relativePath}`,
-              ...(entity_id != null ? { entity_id } : {}),
+              ...(ref.entity_id != null ? { entity_id: ref.entity_id } : {}),
             });
           }
 
           if (files.length > 0) {
             logger.debug(
-              `[primeSkillFiles] All ${sessionIds.size} session(s) active for skill "${skill.name}", reusing ${files.length} files`,
+              `[primeSkillFiles] All ${refsBySession.size} session(s) active for skill "${skill.name}", reusing ${files.length} files`,
             );
             return { session_id: files[0].session_id, files };
           }
@@ -235,11 +227,19 @@ export async function primeSkillFiles(
     if (updateSkillFileCodeEnvIds) {
       const updates = result.files
         .filter((f) => !f.filename.endsWith('/SKILL.md'))
-        .map((f) => ({
-          skillId: skill._id,
-          relativePath: f.filename.slice(f.filename.indexOf('/') + 1),
-          codeEnvIdentifier: `${result.session_id}/${f.fileId}?entity_id=${entityId}`,
-        }));
+        .map((f) => {
+          const ref: CodeEnvRef = {
+            storage_session_id: result.session_id,
+            file_id: f.fileId,
+            entity_id: entityId,
+          };
+          return {
+            skillId: skill._id,
+            relativePath: f.filename.slice(f.filename.indexOf('/') + 1),
+            codeEnvIdentifier: formatCodeEnvIdentifier(ref),
+            codeEnvRef: ref,
+          };
+        });
       if (updates.length > 0) {
         try {
           await updateSkillFileCodeEnvIds(updates);
@@ -353,23 +353,24 @@ export async function primeInvokedSkills(
     // ALL distinct sessions for freshness. If all are active, return cached
     // references with zero re-uploads. If any expired, re-upload everything.
     if (deps.getSessionInfo && deps.checkIfActive) {
-      const allFiles = fileListResults.flatMap((r) => r.files);
-      const allFilesWithIds = allFiles.filter((f) => f.codeEnvIdentifier);
+      const allResolved = fileListResults.flatMap((r) =>
+        r.files.map((f) => ({ skillName: r.skill.name, file: f, ref: resolveCodeEnvRef(f) })),
+      );
+      const resolvedWithRef = allResolved.filter((x) => x.ref !== undefined);
 
       // Only use cache when ALL files have identifiers (no partial persistence)
-      if (allFilesWithIds.length > 0 && allFilesWithIds.length === allFiles.length) {
-        const sessionIds = new Set(
-          allFilesWithIds.map((f) => f.codeEnvIdentifier!.split('?')[0].split('/')[0]),
-        );
+      if (resolvedWithRef.length > 0 && resolvedWithRef.length === allResolved.length) {
+        const refsBySession = new Map<string, CodeEnvRef>();
+        for (const { ref } of resolvedWithRef) {
+          if (ref && !refsBySession.has(ref.storage_session_id)) {
+            refsBySession.set(ref.storage_session_id, ref);
+          }
+        }
 
         const checkResults = await Promise.all(
-          Array.from(sessionIds).map(async (sid) => {
-            const representative = allFilesWithIds.find((f) =>
-              f.codeEnvIdentifier!.startsWith(`${sid}/`),
-            );
-            if (!representative) return true;
+          Array.from(refsBySession.values()).map(async (ref) => {
             try {
-              const lastModified = await deps.getSessionInfo?.(representative.codeEnvIdentifier!);
+              const lastModified = await deps.getSessionInfo?.(formatCodeEnvIdentifier(ref));
               return !!(lastModified && deps.checkIfActive?.(lastModified));
             } catch {
               return false;
@@ -379,24 +380,15 @@ export async function primeInvokedSkills(
         const allActive = checkResults.every(Boolean);
 
         if (allActive) {
-          const cachedFiles = fileListResults.flatMap((r) =>
-            r.files
-              .filter((f) => f.codeEnvIdentifier)
-              .map((f) => {
-                const identifier = f.codeEnvIdentifier as string;
-                const [sid, fid] = identifier.split('?')[0].split('/');
-                const entity_id = parseEntityIdFromCodeEnvIdentifier(identifier);
-                return {
-                  id: fid,
-                  name: `${r.skill.name}/${f.relativePath}`,
-                  session_id: sid,
-                  ...(entity_id != null ? { entity_id } : {}),
-                };
-              }),
-          );
+          const cachedFiles = resolvedWithRef.map(({ skillName, file, ref }) => ({
+            id: ref!.file_id,
+            name: `${skillName}/${file.relativePath}`,
+            session_id: ref!.storage_session_id,
+            ...(ref!.entity_id != null ? { entity_id: ref!.entity_id } : {}),
+          }));
           if (cachedFiles.length > 0) {
             logger.debug(
-              `[primeInvokedSkills] All ${sessionIds.size} session(s) active, reusing ${cachedFiles.length} cached files`,
+              `[primeInvokedSkills] All ${refsBySession.size} session(s) active, reusing ${cachedFiles.length} cached files`,
             );
             sessions = new Map();
             // session_id is a representative value. ToolNode uses per-file

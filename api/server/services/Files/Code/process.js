@@ -25,7 +25,9 @@ const {
   EToolResources,
   EModelEndpoint,
   mergeFileConfig,
+  resolveCodeEnvRef,
   getEndpointFileConfig,
+  formatCodeEnvIdentifier,
 } = require('librechat-data-provider');
 const { filterFilesByAgentAccess } = require('~/server/services/Files/permissions');
 const { createFile, getFiles, updateFile, claimCodeFile } = require('~/models');
@@ -134,7 +136,8 @@ const processCodeOutput = async ({
       });
     }
 
-    const fileIdentifier = `${session_id}/${id}`;
+    const codeEnvRef = { storage_session_id: session_id, file_id: id };
+    const fileIdentifier = formatCodeEnvIdentifier(codeEnvRef);
 
     /* `safeName` keeps the directory structure (`a/b/file.txt` -> `a/b/file.txt`)
      * so the next prime() can place the file at the same nested path in the
@@ -203,7 +206,7 @@ const processCodeOutput = async ({
         updatedAt: formattedDate,
         source: appConfig.fileStrategy,
         context: FileContext.execute_code,
-        metadata: { fileIdentifier },
+        metadata: { fileIdentifier, codeEnvRef },
       };
       await createFile(file, true);
       return Object.assign(file, { messageId, toolCallId });
@@ -293,7 +296,7 @@ const processCodeOutput = async ({
       user: req.user.id,
       bytes: buffer.length,
       updatedAt: formattedDate,
-      metadata: { fileIdentifier },
+      metadata: { fileIdentifier, codeEnvRef },
       source: appConfig.fileStrategy,
       context: FileContext.execute_code,
       usage: isUpdate ? (claimed.usage ?? 0) + 1 : 1,
@@ -426,26 +429,23 @@ const primeFiles = async (options) => {
       continue;
     }
 
-    if (file.metadata.fileIdentifier) {
-      const [path, queryString] = file.metadata.fileIdentifier.split('?');
-      const [session_id, id] = path.split('/');
-
-      let queryParams = {};
-      if (queryString) {
-        queryParams = Object.fromEntries(new URLSearchParams(queryString).entries());
-      }
+    const ref = resolveCodeEnvRef(file.metadata ?? {});
+    if (ref) {
+      const session_id = ref.storage_session_id;
+      const id = ref.file_id;
+      const entityId = ref.entity_id;
 
       /**
        * `pushFile` accepts optional overrides so the reupload path can
        * push the FRESH `(session_id, id, entity_id)` parsed off the new
-       * `fileIdentifier`. Without these overrides, the closure would
+       * `codeEnvRef`. Without these overrides, the closure would
        * capture the stale pre-reupload refs from the outer loop and
        * the in-memory `files` array (now consumed by
        * `buildInitialToolSessions` to seed `Graph.sessions`) would
        * point at a sandbox object that no longer exists. The DB record
-       * gets the new identifier via `updateFile`, but the seed would
-       * still inject the old one — bash_tool / read_file would 404
-       * trying to mount the file until the next turn re-reads metadata.
+       * gets the new ref via `updateFile`, but the seed would still
+       * inject the old one — bash_tool / read_file would 404 trying to
+       * mount the file until the next turn re-reads metadata.
        *
        * `entity_id` is forwarded so codeapi can resolve sessionKey
        * per-file, allowing one execute to mix files uploaded under
@@ -464,7 +464,7 @@ const primeFiles = async (options) => {
               : ' (attached by user)';
         }
 
-        const entity_id = overrideEntityId ?? queryParams.entity_id;
+        const entity_id = overrideEntityId ?? entityId;
         toolContext += `\n\t- /mnt/data/${file.filename}${fileSuffix}`;
         files.push({
           id: overrideId ?? id,
@@ -490,38 +490,38 @@ const primeFiles = async (options) => {
             req: options.req,
             stream,
             filename: file.filename,
-            entity_id: queryParams.entity_id,
+            entity_id: entityId,
           });
 
-          // Preserve existing metadata when adding fileIdentifier
+          /**
+           * Parse the FRESH fileIdentifier returned by the reupload and
+           * route it through both the dedupe Map, the persisted record
+           * (dual-write), and the in-memory `files` list. The original
+           * `(session_id, id)` parsed at the top of this iteration refer
+           * to the old, expired/missing sandbox object — using them here
+           * would silently re-introduce the bug `Graph.sessions` seeding
+           * is supposed to fix.
+           *
+           * `entity_id` survives the round-trip: the upload was tagged
+           * with `entityId` above, so the new ref carries the same scope.
+           */
+          const newRef = resolveCodeEnvRef({ fileIdentifier });
+          if (!newRef) {
+            throw new Error(`Reupload returned unparseable fileIdentifier: ${fileIdentifier}`);
+          }
+
           const updatedMetadata = {
-            ...file.metadata, // Preserve existing metadata (like S3 storage info)
-            fileIdentifier, // Add fileIdentifier
+            ...file.metadata,
+            fileIdentifier,
+            codeEnvRef: newRef,
           };
 
           await updateFile({
             file_id: file.file_id,
             metadata: updatedMetadata,
           });
-          /**
-           * Parse the FRESH fileIdentifier returned by the reupload and
-           * route it through both the dedupe Map and the in-memory
-           * `files` list. The original `(session_id, id)` parsed at the
-           * top of this iteration refer to the old, expired/missing
-           * sandbox object — using them here would silently re-introduce
-           * the bug `Graph.sessions` seeding is supposed to fix.
-           *
-           * `entity_id` survives the round-trip: the upload was tagged
-           * with `queryParams.entity_id` above, so the new identifier
-           * carries the same scope.
-           */
-          const [newPath, newQuery] = fileIdentifier.split('?');
-          const [newSessionId, newId] = newPath.split('/');
-          const newQueryParams = newQuery
-            ? Object.fromEntries(new URLSearchParams(newQuery).entries())
-            : {};
-          sessions.set(newSessionId, true);
-          pushFile(newSessionId, newId, newQueryParams.entity_id);
+          sessions.set(newRef.storage_session_id, true);
+          pushFile(newRef.storage_session_id, newRef.file_id, newRef.entity_id);
         } catch (error) {
           logger.error(
             `Error re-uploading file ${id} in session ${session_id}: ${error.message}`,
@@ -529,7 +529,7 @@ const primeFiles = async (options) => {
           );
         }
       };
-      const uploadTime = await getSessionInfo(file.metadata.fileIdentifier);
+      const uploadTime = await getSessionInfo(formatCodeEnvIdentifier(ref));
       if (!uploadTime) {
         logger.warn(`Failed to get upload time for file ${id} in session ${session_id}`);
         await reuploadFile();

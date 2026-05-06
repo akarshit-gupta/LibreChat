@@ -1,3 +1,4 @@
+import type { CodeEnvRef } from 'librechat-data-provider';
 import type { Document, Types } from 'mongoose';
 
 /**
@@ -128,11 +129,18 @@ export interface ISkillFile {
   /** Set on first read. `true` prevents repeated storage reads for non-text files. */
   isBinary?: boolean;
   /**
-   * Code environment file identifier (`session_id/fileId`).
-   * Set after uploading to code env, used to check freshness on subsequent runs.
-   * Cleared when the skill file is re-uploaded to storage.
+   * Legacy code-environment identifier (`session_id/fileId?entity_id=...`).
+   * Persisted alongside `codeEnvRef` during the dual-write transition.
+   * Readers should prefer `codeEnvRef` and call `resolveCodeEnvRef` to
+   * fall back when only the legacy string is set. Cleared when the
+   * skill file is re-uploaded to storage.
    */
   codeEnvIdentifier?: string;
+  /**
+   * Structured replacement for `codeEnvIdentifier`. Set after uploading
+   * to the code env, used to check freshness on subsequent runs.
+   */
+  codeEnvRef?: CodeEnvRef;
   createdAt?: Date;
   updatedAt?: Date;
 }

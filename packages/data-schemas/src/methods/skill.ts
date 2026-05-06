@@ -7,6 +7,7 @@ import {
   SKILL_BODY_MAX_LENGTH,
   SKILL_NAME_PATTERN as SKILL_NAME_PATTERN_SHARED,
 } from 'librechat-data-provider';
+import type { CodeEnvRef } from 'librechat-data-provider';
 import type { Model, Types, FilterQuery } from 'mongoose';
 import type {
   ISkill,
@@ -1490,6 +1491,7 @@ export function createSkillMethods(mongoose: typeof import('mongoose'), deps: Sk
       skillId: Types.ObjectId | string;
       relativePath: string;
       codeEnvIdentifier: string;
+      codeEnvRef?: CodeEnvRef;
     }>,
   ): Promise<{ matchedCount: number; modifiedCount: number }> {
     if (updates.length === 0) return { matchedCount: 0, modifiedCount: 0 };
@@ -1497,7 +1499,11 @@ export function createSkillMethods(mongoose: typeof import('mongoose'), deps: Sk
     const ops = updates.map((u) => ({
       updateOne: {
         filter: { skillId: u.skillId, relativePath: u.relativePath },
-        update: { $set: { codeEnvIdentifier: u.codeEnvIdentifier } },
+        update: {
+          $set: u.codeEnvRef
+            ? { codeEnvIdentifier: u.codeEnvIdentifier, codeEnvRef: u.codeEnvRef }
+            : { codeEnvIdentifier: u.codeEnvIdentifier },
+        },
       },
     }));
 

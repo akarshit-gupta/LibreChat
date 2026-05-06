@@ -1,4 +1,5 @@
 import { Document, Types } from 'mongoose';
+import type { CodeEnvRef } from 'librechat-data-provider';
 
 export interface IMongoFile extends Omit<Document, 'model'> {
   user: Types.ObjectId;
@@ -31,7 +32,16 @@ export interface IMongoFile extends Omit<Document, 'model'> {
   width?: number;
   height?: number;
   metadata?: {
+    /**
+     * Legacy magic-string identifier (`session_id/fileId?entity_id=...`).
+     * Persisted alongside `codeEnvRef` during the dual-write transition.
+     */
     fileIdentifier?: string;
+    /**
+     * Structured replacement for `fileIdentifier`. Readers should
+     * resolve via `resolveCodeEnvRef`.
+     */
+    codeEnvRef?: CodeEnvRef;
   };
   expiresAt?: Date;
   createdAt?: Date;

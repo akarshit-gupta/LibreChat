@@ -1,4 +1,5 @@
 import { EToolResources } from './assistants';
+import type { CodeEnvRef } from '../codeEnvRef';
 
 export enum FileSources {
   local = 'local',
@@ -127,7 +128,15 @@ export type TFile = {
    * See Codex P1 review on PR #12934.
    */
   textFormat?: 'html' | 'text' | null;
-  metadata?: { fileIdentifier?: string };
+  metadata?: {
+    fileIdentifier?: string;
+    /**
+     * Structured form of `fileIdentifier`. Persisted alongside the
+     * legacy string during the dual-write transition; readers should
+     * resolve via `resolveCodeEnvRef`.
+     */
+    codeEnvRef?: CodeEnvRef;
+  };
   createdAt?: string | Date;
   updatedAt?: string | Date;
 };

@@ -554,7 +554,7 @@ describe('Code Process', () => {
     });
 
     describe('metadata and file properties', () => {
-      it('should include fileIdentifier in metadata', async () => {
+      it('should include fileIdentifier and codeEnvRef in metadata', async () => {
         const smallBuffer = Buffer.alloc(100);
         mockAxios.mockResolvedValue({ data: smallBuffer });
 
@@ -562,6 +562,10 @@ describe('Code Process', () => {
 
         expect(result.metadata).toEqual({
           fileIdentifier: 'session-123/file-id-123',
+          codeEnvRef: {
+            storage_session_id: 'session-123',
+            file_id: 'file-id-123',
+          },
         });
       });
 
@@ -1080,7 +1084,7 @@ describe('Code Process', () => {
       ]);
     });
 
-    it('persists the new fileIdentifier on the DB record (existing behavior, regression-locked)', async () => {
+    it('persists fileIdentifier + codeEnvRef on the DB record after reupload', async () => {
       const dbFile = {
         file_id: 'librechat-file-id',
         filename: 'sentinel.txt',
@@ -1104,9 +1108,91 @@ describe('Code Process', () => {
       expect(updateFile).toHaveBeenCalledWith(
         expect.objectContaining({
           file_id: 'librechat-file-id',
-          metadata: expect.objectContaining({ fileIdentifier: 'NEW_SESSION/NEW_ID' }),
+          metadata: expect.objectContaining({
+            fileIdentifier: 'NEW_SESSION/NEW_ID',
+            codeEnvRef: { storage_session_id: 'NEW_SESSION', file_id: 'NEW_ID' },
+          }),
         }),
       );
+    });
+
+    it('reads codeEnvRef directly when present on metadata (skipping reupload)', async () => {
+      /* Records written after the structured-ref migration carry both the
+       * legacy string and the typed `codeEnvRef`. The read path must
+       * honor `codeEnvRef` so cache-hit primes don't pay another upload. */
+      const dbFile = {
+        file_id: 'librechat-file-id',
+        filename: 'sentinel.txt',
+        filepath: '/uploads/sentinel.txt',
+        source: 'local',
+        context: 'execute_code',
+        metadata: {
+          fileIdentifier: 'STRUCT_SESSION/STRUCT_ID?entity_id=user-123',
+          codeEnvRef: {
+            storage_session_id: 'STRUCT_SESSION',
+            file_id: 'STRUCT_ID',
+            entity_id: 'user-123',
+          },
+        },
+      };
+      getFiles.mockResolvedValue([dbFile]);
+      filterFilesByAgentAccess.mockImplementation(({ files }) => Promise.resolve(files));
+      // getSessionInfo returns a fresh timestamp so reupload is skipped.
+      mockAxios.mockResolvedValue({ data: { lastModified: new Date().toISOString() } });
+
+      const result = await primeFiles({
+        req: { user: { id: 'user-123', role: 'USER' } },
+        tool_resources: {
+          execute_code: { file_ids: ['librechat-file-id'], files: [] },
+        },
+        agentId: 'agent-id',
+      });
+
+      expect(updateFile).not.toHaveBeenCalled();
+      expect(result.files).toEqual([
+        {
+          id: 'STRUCT_ID',
+          session_id: 'STRUCT_SESSION',
+          name: 'sentinel.txt',
+          entity_id: 'user-123',
+        },
+      ]);
+    });
+
+    it('falls back to parsing legacy fileIdentifier when codeEnvRef is missing', async () => {
+      /* Pre-migration records carry only the legacy magic string. The
+       * read path parses it transparently so cache hits keep working
+       * before the migration has run. */
+      const dbFile = {
+        file_id: 'librechat-file-id',
+        filename: 'sentinel.txt',
+        filepath: '/uploads/sentinel.txt',
+        source: 'local',
+        context: 'execute_code',
+        metadata: {
+          fileIdentifier: 'LEGACY_SESSION/LEGACY_ID?entity_id=user-123',
+        },
+      };
+      getFiles.mockResolvedValue([dbFile]);
+      filterFilesByAgentAccess.mockImplementation(({ files }) => Promise.resolve(files));
+      mockAxios.mockResolvedValue({ data: { lastModified: new Date().toISOString() } });
+
+      const result = await primeFiles({
+        req: { user: { id: 'user-123', role: 'USER' } },
+        tool_resources: {
+          execute_code: { file_ids: ['librechat-file-id'], files: [] },
+        },
+        agentId: 'agent-id',
+      });
+
+      expect(result.files).toEqual([
+        {
+          id: 'LEGACY_ID',
+          session_id: 'LEGACY_SESSION',
+          name: 'sentinel.txt',
+          entity_id: 'user-123',
+        },
+      ]);
     });
   });
 });
