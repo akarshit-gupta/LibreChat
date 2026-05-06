@@ -1433,7 +1433,7 @@ export function createSkillMethods(mongoose: typeof import('mongoose'), deps: Sk
           author: row.author,
           tenantId: row.tenantId,
         },
-        $unset: { content: '', isBinary: '', codeEnvIdentifier: '' },
+        $unset: { content: '', isBinary: '', codeEnvIdentifier: '', codeEnvRef: '' },
       },
       { new: false, upsert: true },
     ).lean();

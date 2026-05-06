@@ -29,7 +29,14 @@ export function parseCodeEnvIdentifier(
 ): CodeEnvRef | undefined {
   if (!identifier) return undefined;
   const [path, queryString] = identifier.split('?');
-  const [storage_session_id, file_id] = path.split('/');
+  const segments = path.split('/');
+  /* Reject anything that isn't exactly `<storage_session_id>/<file_id>`
+   * before the query string. Without the length check, `s/f/extra`
+   * silently returns `{ storage_session_id: 's', file_id: 'f' }` and a
+   * future change to the on-disk identifier shape would manifest as
+   * wrong refs rather than a parse failure. */
+  if (segments.length !== 2) return undefined;
+  const [storage_session_id, file_id] = segments;
   if (!storage_session_id || !file_id) return undefined;
   let entity_id: string | undefined;
   if (queryString) {

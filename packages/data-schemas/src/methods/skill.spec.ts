@@ -1318,6 +1318,69 @@ describe('SkillFile methods', () => {
     expect(files[0].file_id).toBe('file-2');
   });
 
+  it('clears codeEnvIdentifier and codeEnvRef when a skill file is upserted (replacement)', async () => {
+    /* A re-upload of a skill file replaces the row's contents — but the
+     * cached cache pointers (`codeEnvIdentifier`, `codeEnvRef`) refer to
+     * the OLD bytes living in codeapi. Leaving either field populated
+     * makes the next prime resolve a stale ref; with `resolveCodeEnvRef`
+     * preferring the structured field, even clearing only the legacy
+     * string would leave the typed ref live and serve a stale pointer.
+     * The upsert MUST $unset both fields. */
+    const { skill } = await methods.createSkill(makeSkillInput());
+    await methods.upsertSkillFile({
+      skillId: skill._id,
+      relativePath: 'scripts/parse.sh',
+      file_id: 'file-1',
+      filename: 'parse.sh',
+      filepath: '/tmp/v1',
+      source: 'local',
+      mimeType: 'text/plain',
+      bytes: 10,
+      author: owner._id,
+    });
+
+    const entityId = skill._id.toString();
+    await methods.updateSkillFileCodeEnvIds([
+      {
+        skillId: skill._id,
+        relativePath: 'scripts/parse.sh',
+        codeEnvIdentifier: `sess-old/file-old?entity_id=${entityId}`,
+        codeEnvRef: {
+          storage_session_id: 'sess-old',
+          file_id: 'file-old',
+          entity_id: entityId,
+        },
+      },
+    ]);
+
+    /* Sanity: both pointers are persisted before the replacement. */
+    const before = await methods.listSkillFiles(skill._id);
+    expect(before[0].codeEnvIdentifier).toBe(`sess-old/file-old?entity_id=${entityId}`);
+    expect(before[0].codeEnvRef).toMatchObject({
+      storage_session_id: 'sess-old',
+      file_id: 'file-old',
+    });
+
+    /* Replace the row with new bytes. */
+    await methods.upsertSkillFile({
+      skillId: skill._id,
+      relativePath: 'scripts/parse.sh',
+      file_id: 'file-2',
+      filename: 'parse.sh',
+      filepath: '/tmp/v2',
+      source: 'local',
+      mimeType: 'text/plain',
+      bytes: 20,
+      author: owner._id,
+    });
+
+    const after = await methods.listSkillFiles(skill._id);
+    expect(after).toHaveLength(1);
+    expect(after[0].file_id).toBe('file-2');
+    expect(after[0].codeEnvIdentifier).toBeUndefined();
+    expect(after[0].codeEnvRef).toBeUndefined();
+  });
+
   it('deleteSkillFile recounts and bumps version', async () => {
     const { skill } = await methods.createSkill(makeSkillInput());
     await methods.upsertSkillFile({

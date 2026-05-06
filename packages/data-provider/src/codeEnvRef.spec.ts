@@ -29,6 +29,14 @@ describe('parseCodeEnvIdentifier', () => {
     expect(parseCodeEnvIdentifier(undefined)).toBeUndefined();
     expect(parseCodeEnvIdentifier('no-slash-here')).toBeUndefined();
   });
+
+  it('rejects extra path segments instead of silently truncating', () => {
+    /* Without the length guard `s/f/extra` would parse to `{s, f}` and a
+     * future change to the on-disk identifier format would surface as
+     * wrong refs rather than a parse failure. */
+    expect(parseCodeEnvIdentifier('s/f/extra')).toBeUndefined();
+    expect(parseCodeEnvIdentifier('s/f/extra?entity_id=skill-42')).toBeUndefined();
+  });
 });
 
 describe('formatCodeEnvIdentifier', () => {
