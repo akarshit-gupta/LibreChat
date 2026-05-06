@@ -1506,6 +1506,61 @@ describe('SkillFile methods', () => {
       expect(legacy?.codeEnvRef).toBeUndefined();
     });
 
+    it('clears stale codeEnvRef when a legacy-only update refreshes codeEnvIdentifier', async () => {
+      /* Mixed-writer rollout regression: an older call site may still
+       * send only `codeEnvIdentifier` after the dual-write rollout has
+       * already populated `codeEnvRef` on the row. Without an explicit
+       * $unset, the structured field would shadow the freshly-refreshed
+       * legacy identifier in `resolveCodeEnvRef` (which prefers
+       * `codeEnvRef`), serving a stale (storage_session_id, file_id)
+       * pointer until the next dual-writer touched the row. */
+      const { skill } = await methods.createSkill(makeSkillInput());
+      await methods.upsertSkillFile({
+        skillId: skill._id,
+        relativePath: 'scripts/mixed.sh',
+        file_id: 'mixed-1',
+        filename: 'mixed.sh',
+        filepath: '/mixed',
+        source: 'local',
+        mimeType: 'text/plain',
+        bytes: 1,
+        author: owner._id,
+      });
+
+      /* First write: dual-writer populates BOTH fields on the row. */
+      await methods.updateSkillFileCodeEnvIds([
+        {
+          skillId: skill._id,
+          relativePath: 'scripts/mixed.sh',
+          codeEnvIdentifier: 'sess-old/file-old',
+          codeEnvRef: {
+            storage_session_id: 'sess-old',
+            file_id: 'file-old',
+          },
+        },
+      ]);
+      const before = await methods.listSkillFiles(skill._id);
+      expect(before[0].codeEnvRef).toMatchObject({
+        storage_session_id: 'sess-old',
+        file_id: 'file-old',
+      });
+
+      /* Second write: legacy-only writer refreshes the identifier. */
+      await methods.updateSkillFileCodeEnvIds([
+        {
+          skillId: skill._id,
+          relativePath: 'scripts/mixed.sh',
+          codeEnvIdentifier: 'sess-new/file-new',
+        },
+      ]);
+
+      const after = await methods.listSkillFiles(skill._id);
+      expect(after[0].codeEnvIdentifier).toBe('sess-new/file-new');
+      /* Critical: codeEnvRef must NOT survive — otherwise the next
+       * resolveCodeEnvRef would return the stale `sess-old/file-old`. */
+      expect(after[0].codeEnvRef).toBeUndefined();
+    });
+
     it('reports modifiedCount=0 when no SkillFile rows match the (skillId, relativePath) filter', async () => {
       const { skill } = await methods.createSkill(makeSkillInput());
       const result = await methods.updateSkillFileCodeEnvIds([

@@ -1496,14 +1496,28 @@ export function createSkillMethods(mongoose: typeof import('mongoose'), deps: Sk
   ): Promise<{ matchedCount: number; modifiedCount: number }> {
     if (updates.length === 0) return { matchedCount: 0, modifiedCount: 0 };
     const SkillFile = mongoose.models.SkillFile as Model<ISkillFileDocument>;
+    /* Legacy-only updates ($set codeEnvIdentifier without codeEnvRef)
+     * MUST also $unset any pre-existing codeEnvRef. resolveCodeEnvRef
+     * prefers the structured field, so leaving a stale codeEnvRef in
+     * place after refreshing the legacy identifier would shadow the
+     * fresh pointer with the old (storage_session_id, file_id). Mixed-
+     * writer rollouts (e.g. an older codepath calling this method
+     * before its sibling write site is updated) would silently serve
+     * stale skill-file refs. */
     const ops = updates.map((u) => ({
       updateOne: {
         filter: { skillId: u.skillId, relativePath: u.relativePath },
-        update: {
-          $set: u.codeEnvRef
-            ? { codeEnvIdentifier: u.codeEnvIdentifier, codeEnvRef: u.codeEnvRef }
-            : { codeEnvIdentifier: u.codeEnvIdentifier },
-        },
+        update: u.codeEnvRef
+          ? {
+              $set: {
+                codeEnvIdentifier: u.codeEnvIdentifier,
+                codeEnvRef: u.codeEnvRef,
+              },
+            }
+          : {
+              $set: { codeEnvIdentifier: u.codeEnvIdentifier },
+              $unset: { codeEnvRef: '' },
+            },
       },
     }));
 
