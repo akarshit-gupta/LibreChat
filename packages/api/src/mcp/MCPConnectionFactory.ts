@@ -1,4 +1,4 @@
-import { logger } from '@librechat/data-schemas';
+import { logger, getTenantId } from '@librechat/data-schemas';
 import type { OAuthClientInformation } from '@modelcontextprotocol/sdk/shared/auth.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { TokenMethods } from '@librechat/data-schemas';
@@ -32,6 +32,7 @@ export class MCPConnectionFactory {
   protected readonly useOAuth: boolean;
   protected readonly useSSRFProtection: boolean;
   protected readonly allowedDomains?: string[] | null;
+  protected readonly allowedAddresses?: string[] | null;
 
   // OAuth-related properties (only set when useOAuth is true)
   protected readonly userId?: string;
@@ -87,6 +88,7 @@ export class MCPConnectionFactory {
       userId: this.userId,
       oauthTokens,
       useSSRFProtection: this.useSSRFProtection,
+      allowedAddresses: this.allowedAddresses,
     });
 
     const oauthHandler = () => {
@@ -159,6 +161,7 @@ export class MCPConnectionFactory {
       userId: this.userId,
       oauthTokens: null,
       useSSRFProtection: this.useSSRFProtection,
+      allowedAddresses: this.allowedAddresses,
     });
 
     unauthConnection.on('oauthRequired', () => {
@@ -207,6 +210,7 @@ export class MCPConnectionFactory {
     this.serverName = basic.serverName;
     this.useSSRFProtection = basic.useSSRFProtection === true;
     this.allowedDomains = basic.allowedDomains;
+    this.allowedAddresses = basic.allowedAddresses;
     this.connectionTimeout = options?.connectionTimeout;
     this.logPrefix = options?.user
       ? `[MCP][${basic.serverName}][${options.user.id}]`
@@ -235,6 +239,7 @@ export class MCPConnectionFactory {
       userId: this.userId,
       oauthTokens,
       useSSRFProtection: this.useSSRFProtection,
+      allowedAddresses: this.allowedAddresses,
     });
 
     let cleanupOAuthHandlers: (() => void) | null = null;
@@ -316,6 +321,7 @@ export class MCPConnectionFactory {
         this.serverConfig.oauth_headers ?? {},
         this.serverConfig.oauth,
         this.allowedDomains,
+        this.allowedAddresses,
       );
     };
   }
@@ -362,6 +368,7 @@ export class MCPConnectionFactory {
             this.allowedDomains,
             // Only reuse stored client when deleteTokens is available for stale-client cleanup
             this.tokenMethods?.deleteTokens ? this.tokenMethods.findToken : undefined,
+            this.allowedAddresses,
           );
 
           if (existingFlow) {
@@ -374,7 +381,7 @@ export class MCPConnectionFactory {
           }
 
           // Store flow state BEFORE redirecting so the callback can find it
-          const metadataWithUrl = { ...flowMetadata, authorizationUrl };
+          const metadataWithUrl = { ...flowMetadata, authorizationUrl, tenantId: getTenantId() };
           await this.flowManager!.initFlow(newFlowId, 'mcp_oauth', metadataWithUrl);
           await MCPOAuthHandler.storeStateMapping(flowMetadata.state, newFlowId, this.flowManager!);
 
@@ -673,12 +680,13 @@ export class MCPConnectionFactory {
         this.serverConfig.oauth,
         this.allowedDomains,
         this.tokenMethods?.deleteTokens ? this.tokenMethods.findToken : undefined,
+        this.allowedAddresses,
       );
 
       reusedStoredClient = flowMetadata.reusedStoredClient === true;
 
       // Store flow state BEFORE redirecting so the callback can find it
-      const metadataWithUrl = { ...flowMetadata, authorizationUrl };
+      const metadataWithUrl = { ...flowMetadata, authorizationUrl, tenantId: getTenantId() };
       await this.flowManager.initFlow(newFlowId, 'mcp_oauth', metadataWithUrl);
       await MCPOAuthHandler.storeStateMapping(flowMetadata.state, newFlowId, this.flowManager);
 
