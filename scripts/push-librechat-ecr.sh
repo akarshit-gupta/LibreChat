@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# ./scripts/push-librechat-ecr.sh [--no-cache] <image-tag>
+# Example: ./scripts/push-librechat-ecr.sh --no-cache v0.8.6-rc1
 set -euo pipefail
 
 NO_CACHE_BUILD=0
